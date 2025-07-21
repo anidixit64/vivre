@@ -45,8 +45,17 @@ jobs:
         output-format: sarif
         output-file: semgrep-results.sarif
 
+    - name: Check if Semgrep results exist
+      id: check-semgrep
+      run: |
+        if [ -f semgrep-results.sarif ] && [ -s semgrep-results.sarif ]; then
+          echo "has_results=true" >> $GITHUB_OUTPUT
+        else
+          echo "has_results=false" >> $GITHUB_OUTPUT
+        fi
+
     - name: Upload Semgrep results to GitHub Security tab
       uses: github/codeql-action/upload-sarif@v3
-      if: always()
+      if: always() && steps.check-semgrep.outputs.has_results == 'true'
       with:
         sarif_file: semgrep-results.sarif
