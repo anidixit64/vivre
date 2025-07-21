@@ -9,14 +9,24 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = ">=3.11,<3.14"
 requests = "^2.32.4"
 pytest = "^8.4.1"
+ebooklib = "^0.19"
+nltk = "^3.9.1"
+spacy = "^3.8.7"
+numpy = "^2.3.1"
+typer = "^0.16.0"
+rich = "^14.0.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"
 flake8 = "^7.3.0"
 mypy = "^1.17.0"
+pytest = "^8.4.1"
+pytest-cov = "^6.2.1"
+ruff = "^0.12.4"
+isort = "^6.0.1"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
