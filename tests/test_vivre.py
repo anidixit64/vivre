@@ -18,7 +18,7 @@ def test_author():
 
 def test_email():
     """Test that email is defined."""
-    assert __email__ == "anidixit64@gmail.com"
+    assert __email__ == "aniketdixit00.ani@gmail.com"
 
 
 def test_import():
