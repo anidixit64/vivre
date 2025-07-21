@@ -2,8 +2,7 @@
 Tests for the vivre package.
 """
 
-import pytest
-from vivre import __version__, __author__, __email__
+from vivre import __author__, __email__, __version__
 
 
 def test_version():
@@ -24,4 +23,5 @@ def test_email():
 def test_import():
     """Test that the package can be imported."""
     import vivre
-    assert vivre is not None 
+
+    assert vivre is not None
