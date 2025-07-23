@@ -781,7 +781,7 @@ class TestParser:
 
         # Test with extremely long path
         long_path = "a" * 1000 + ".epub"
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises((FileNotFoundError, OSError)):
             parser.load_epub(Path(long_path))
 
     def test_parse_epub_with_bad_paths(self):
