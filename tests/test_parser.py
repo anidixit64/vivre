@@ -667,7 +667,7 @@ class TestParser:
             temp_file_path = Path(temp_file.name)
 
         try:
-            with pytest.raises(ValueError, match="File is not a valid ZIP archive"):
+            with pytest.raises(ValueError, match="File is not a valid EPUB"):
                 parser.parse_epub(temp_file_path)
         finally:
             temp_file_path.unlink()
@@ -679,9 +679,7 @@ class TestParser:
             temp_file_path = Path(temp_file.name)
 
         try:
-            with pytest.raises(
-                ValueError, match="Could not find content.opf in container.xml"
-            ):
+            with pytest.raises(ValueError, match="File is not a valid EPUB"):
                 parser.parse_epub(temp_file_path)
         finally:
             temp_file_path.unlink()

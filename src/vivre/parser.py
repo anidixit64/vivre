@@ -80,13 +80,46 @@ class Parser:
         # Basic EPUB validation - check if it's a ZIP file (EPUBs are ZIP archives)
         try:
             with open(file_path, "rb") as f:
+                # Check if file is empty
+                f.seek(0, 2)  # Seek to end
+                file_size = f.tell()
+                if file_size == 0:
+                    raise ValueError(
+                        f"File is not a valid EPUB (empty file): {file_path}"
+                    )
+
+                # Check if file is too small to be a valid ZIP
+                if file_size < 4:
+                    raise ValueError(
+                        f"File is not a valid EPUB (file too small): {file_path}"
+                    )
+
                 # Check ZIP magic number
+                f.seek(0)  # Seek to beginning
                 magic = f.read(4)
                 if magic != b"PK\x03\x04":
                     raise ValueError(
                         f"File is not a valid EPUB (not a ZIP archive): {file_path}"
                     )
+
+                # Try to open as ZIP to validate structure
+                try:
+                    with zipfile.ZipFile(file_path, "r") as test_zip:
+                        # Check if it has the minimum required files for an EPUB
+                        file_list = test_zip.namelist()
+                        if "META-INF/container.xml" not in file_list:
+                            raise ValueError(
+                                f"File is not a valid EPUB "
+                                f"(missing container.xml): {file_path}"
+                            )
+                except zipfile.BadZipFile:
+                    raise ValueError(
+                        f"File is not a valid EPUB "
+                        f"(corrupted ZIP structure): {file_path}"
+                    )
         except Exception as e:
+            if "File is not a valid EPUB" in str(e):
+                raise  # Re-raise our specific validation errors
             raise ValueError(f"Error reading EPUB file: {e}")
 
             # If we get here, the file is valid
