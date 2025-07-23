@@ -157,6 +157,11 @@ class Parser:
                         chapter_title, chapter_text = self._extract_chapter_content(
                             chapter_content
                         )
+
+                        # Skip title/cover pages
+                        if self._is_title_or_cover_page(chapter_title, href):
+                            continue
+
                         chapters.append((chapter_title, chapter_text))
                     except Exception as e:
                         # Skip chapters that can't be parsed
@@ -284,3 +289,32 @@ class Parser:
         content = re.sub(r"\s+", " ", content)
 
         return content.strip()
+
+    def _is_title_or_cover_page(self, title: str, href: str) -> bool:
+        """
+        Check if a chapter is a title or cover page that should be ignored.
+
+        Args:
+            title: The chapter title
+            href: The chapter file path
+
+        Returns:
+            True if the chapter should be ignored, False otherwise
+        """
+        # Check title for common cover/title indicators
+        title_lower = title.lower()
+        if any(
+            keyword in title_lower
+            for keyword in ["cover", "title", "titlepage", "front cover", "back cover"]
+        ):
+            return True
+
+        # Check href for common cover/title file patterns
+        href_lower = href.lower()
+        if any(
+            pattern in href_lower
+            for pattern in ["cover", "title", "titlepage", "front", "back"]
+        ):
+            return True
+
+        return False
