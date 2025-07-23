@@ -805,3 +805,31 @@ class TestParser:
         # Test with directory
         with pytest.raises(ValueError, match="Path is not a file"):
             parser.parse_epub(Path(__file__).parent / "data")
+
+    def test_invalid_path_type_handling(self):
+        """Test handling of invalid path types."""
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Test with invalid path types
+        invalid_paths = [
+            123,  # integer
+            3.14,  # float
+            True,  # boolean
+            [],  # list
+            {},  # dict
+            set(),  # set
+        ]
+
+        for invalid_path in invalid_paths:
+            with pytest.raises(
+                ValueError, match="File path must be a string or Path object"
+            ):
+                parser.load_epub(invalid_path)
+
+        for invalid_path in invalid_paths:
+            with pytest.raises(
+                ValueError, match="File path must be a string or Path object"
+            ):
+                parser.parse_epub(invalid_path)

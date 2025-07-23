@@ -29,15 +29,22 @@ class Parser:
         """
         Load an EPUB file from the given path.
 
+        This method performs comprehensive validation including:
+        - Input path validation (None, empty, invalid characters)
+        - File existence and accessibility checks
+        - EPUB format validation (ZIP structure, required files)
+        - Corrupted file detection
+
         Args:
-            file_path: Path to the EPUB file to load
+            file_path: Path to the EPUB file to load (str or Path object)
 
         Returns:
             True if the file was successfully loaded, False otherwise
 
         Raises:
             FileNotFoundError: If the EPUB file doesn't exist
-            ValueError: If the file is not readable or not a valid EPUB
+            ValueError: If the file path is invalid, file is not readable,
+                       or file is not a valid EPUB (empty, corrupted, wrong format)
         """
         # Validate input path
         if file_path is None:
@@ -135,15 +142,19 @@ class Parser:
         """
         Parse an EPUB file and extract chapter titles and text content.
 
+        This method performs the same comprehensive validation as load_epub
+        and then extracts chapter content from the EPUB file.
+
         Args:
-            file_path: Path to the EPUB file to parse
+            file_path: Path to the EPUB file to parse (str or Path object)
 
         Returns:
             List of tuples containing (chapter_title, chapter_text) pairs
 
         Raises:
             FileNotFoundError: If the EPUB file doesn't exist
-            ValueError: If the file is not a valid EPUB or cannot be parsed
+            ValueError: If the file path is invalid, file is not a valid EPUB,
+                       or the EPUB structure cannot be parsed
         """
         # Validate input path (same validation as load_epub)
         if file_path is None:
