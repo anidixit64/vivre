@@ -429,7 +429,7 @@ class TestParser:
                 zip_file.writestr("test.txt", "This is not an EPUB")
 
         try:
-            with pytest.raises(ValueError, match="Error reading EPUB file"):
+            with pytest.raises(ValueError, match="File is not a valid EPUB"):
                 parser.parse_epub(Path(tmp_file.name))
         finally:
             os.unlink(tmp_file.name)
@@ -543,7 +543,7 @@ class TestParser:
         invalid_epub.write_text("This is not an EPUB file")
 
         try:
-            with pytest.raises(ValueError, match="Error reading EPUB file"):
+            with pytest.raises(ValueError, match="File is not a valid EPUB"):
                 parser.parse_epub(invalid_epub)
         finally:
             invalid_epub.unlink()  # Clean up
@@ -581,3 +581,255 @@ class TestParser:
             # Skip text length check for cover/title pages
             if "cover" not in title.lower() and "title" not in title.lower():
                 assert len(text) > 0, f"chapter {i} text should not be empty"
+
+    def test_bad_path_handling(self):
+        """Test handling of various bad path scenarios."""
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Test with None path
+        with pytest.raises(ValueError, match="File path cannot be None"):
+            parser.load_epub(None)
+
+        # Test with empty string path
+        with pytest.raises(ValueError, match="File path cannot be empty"):
+            parser.load_epub("")
+
+        # Test with whitespace-only path
+        with pytest.raises(ValueError, match="File path cannot be empty"):
+            parser.load_epub("   ")
+
+        # Test with path containing null bytes
+        with pytest.raises(ValueError, match="File path contains invalid characters"):
+            parser.load_epub("file\x00name.epub")
+
+        # Test with path containing control characters
+        with pytest.raises(ValueError, match="File path contains invalid characters"):
+            parser.load_epub("file\nname.epub")
+
+        # Test with relative path that doesn't exist
+        with pytest.raises(FileNotFoundError, match="EPUB file not found"):
+            parser.load_epub(Path("./nonexistent.epub"))
+
+        # Test with absolute path that doesn't exist
+        import tempfile
+
+        temp_dir = tempfile.mkdtemp()
+        try:
+            nonexistent_path = Path(temp_dir) / "nonexistent.epub"
+            with pytest.raises(FileNotFoundError, match="EPUB file not found"):
+                parser.load_epub(nonexistent_path)
+        finally:
+            import shutil
+
+            shutil.rmtree(temp_dir)
+
+    def test_corrupted_file_handling(self):
+        """Test handling of corrupted and malformed files."""
+        import tempfile
+        import zipfile
+
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Test with completely empty file
+        with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as temp_file:
+            temp_file.write(b"")
+            temp_file_path = Path(temp_file.name)
+
+        try:
+            with pytest.raises(ValueError, match="File is not a valid EPUB"):
+                parser.load_epub(temp_file_path)
+        finally:
+            temp_file_path.unlink()
+
+        # Test with file that's too small to be a ZIP
+        with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as temp_file:
+            temp_file.write(b"PK\x03\x04")  # Only ZIP header, no content
+            temp_file_path = Path(temp_file.name)
+
+        try:
+            with pytest.raises(ValueError, match="File is not a valid EPUB"):
+                parser.load_epub(temp_file_path)
+        finally:
+            temp_file_path.unlink()
+
+        # Test with corrupted ZIP file (valid header but corrupted content)
+        with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as temp_file:
+            # Create a ZIP file with corrupted content
+            with zipfile.ZipFile(temp_file, "w") as zip_file:
+                zip_file.writestr("test.txt", "Hello World")
+
+            # Corrupt the file by truncating it
+            temp_file.truncate(50)  # Truncate to corrupt the ZIP structure
+            temp_file_path = Path(temp_file.name)
+
+        try:
+            with pytest.raises(ValueError, match="File is not a valid EPUB"):
+                parser.parse_epub(temp_file_path)
+        finally:
+            temp_file_path.unlink()
+
+        # Test with ZIP file that's not an EPUB (missing required files)
+        with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as temp_file:
+            with zipfile.ZipFile(temp_file, "w") as zip_file:
+                zip_file.writestr("random.txt", "This is not an EPUB")
+            temp_file_path = Path(temp_file.name)
+
+        try:
+            with pytest.raises(ValueError, match="File is not a valid EPUB"):
+                parser.parse_epub(temp_file_path)
+        finally:
+            temp_file_path.unlink()
+
+    def test_non_epub_file_handling(self):
+        """Test handling of files that are not EPUBs."""
+        import tempfile
+
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Test with text file
+        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as temp_file:
+            temp_file.write(b"This is a text file, not an EPUB")
+            temp_file_path = Path(temp_file.name)
+
+        try:
+            with pytest.raises(ValueError, match="File is not a valid EPUB"):
+                parser.load_epub(temp_file_path)
+        finally:
+            temp_file_path.unlink()
+
+        # Test with PDF file (different magic number)
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as temp_file:
+            temp_file.write(b"%PDF-1.4\nThis is a PDF file")
+            temp_file_path = Path(temp_file.name)
+
+        try:
+            with pytest.raises(ValueError, match="File is not a valid EPUB"):
+                parser.load_epub(temp_file_path)
+        finally:
+            temp_file_path.unlink()
+
+        # Test with image file
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as temp_file:
+            temp_file.write(b"\xff\xd8\xff\xe0")  # JPEG magic number
+            temp_file_path = Path(temp_file.name)
+
+        try:
+            with pytest.raises(ValueError, match="File is not a valid EPUB"):
+                parser.load_epub(temp_file_path)
+        finally:
+            temp_file_path.unlink()
+
+        # Test with executable file
+        with tempfile.NamedTemporaryFile(suffix=".exe", delete=False) as temp_file:
+            temp_file.write(b"MZ")  # DOS executable magic number
+            temp_file_path = Path(temp_file.name)
+
+        try:
+            with pytest.raises(ValueError, match="File is not a valid EPUB"):
+                parser.load_epub(temp_file_path)
+        finally:
+            temp_file_path.unlink()
+
+    def test_file_permission_handling(self):
+        """Test handling of file permission issues."""
+        import os
+        import tempfile
+
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as temp_file:
+            temp_file.write(b"PK\x03\x04")  # Minimal ZIP header
+            temp_file_path = Path(temp_file.name)
+
+        try:
+            # Make file unreadable
+            os.chmod(temp_file_path, 0o000)
+
+            with pytest.raises(ValueError, match="EPUB file is not readable"):
+                parser.load_epub(temp_file_path)
+        finally:
+            # Restore permissions and clean up
+            os.chmod(temp_file_path, 0o644)
+            temp_file_path.unlink()
+
+    def test_malicious_path_handling(self):
+        """Test handling of potentially malicious paths."""
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Test with path traversal attempts
+        malicious_paths = [
+            "../../../etc/passwd",
+            "..\\..\\..\\windows\\system32\\config\\sam",
+            "....//....//....//etc/passwd",
+            "..%2F..%2F..%2Fetc%2Fpasswd",
+        ]
+
+        for malicious_path in malicious_paths:
+            with pytest.raises((FileNotFoundError, ValueError)):
+                parser.load_epub(Path(malicious_path))
+
+        # Test with extremely long path
+        long_path = "a" * 1000 + ".epub"
+        with pytest.raises((FileNotFoundError, OSError)):
+            parser.load_epub(Path(long_path))
+
+    def test_parse_epub_with_bad_paths(self):
+        """Test parse_epub method with various bad path scenarios."""
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Test with None path
+        with pytest.raises(ValueError, match="File path cannot be None"):
+            parser.parse_epub(None)
+
+        # Test with empty string path
+        with pytest.raises(ValueError, match="File path cannot be empty"):
+            parser.parse_epub("")
+
+        # Test with non-existent file
+        with pytest.raises(FileNotFoundError, match="EPUB file not found"):
+            parser.parse_epub(Path("nonexistent.epub"))
+
+        # Test with directory
+        with pytest.raises(ValueError, match="Path is not a file"):
+            parser.parse_epub(Path(__file__).parent / "data")
+
+    def test_invalid_path_type_handling(self):
+        """Test handling of invalid path types."""
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Test with invalid path types
+        invalid_paths = [
+            123,  # integer
+            3.14,  # float
+            True,  # boolean
+            [],  # list
+            {},  # dict
+            set(),  # set
+        ]
+
+        for invalid_path in invalid_paths:
+            with pytest.raises(
+                ValueError, match="File path must be a string or Path object"
+            ):
+                parser.load_epub(invalid_path)
+
+        for invalid_path in invalid_paths:
+            with pytest.raises(
+                ValueError, match="File path must be a string or Path object"
+            ):
+                parser.parse_epub(invalid_path)

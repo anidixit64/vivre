@@ -29,16 +29,47 @@ class Parser:
         """
         Load an EPUB file from the given path.
 
+        This method performs comprehensive validation including:
+        - Input path validation (None, empty, invalid characters)
+        - File existence and accessibility checks
+        - EPUB format validation (ZIP structure, required files)
+        - Corrupted file detection
+
         Args:
-            file_path: Path to the EPUB file to load
+            file_path: Path to the EPUB file to load (str or Path object)
 
         Returns:
             True if the file was successfully loaded, False otherwise
 
         Raises:
             FileNotFoundError: If the EPUB file doesn't exist
-            ValueError: If the file is not readable or not a valid EPUB
+            ValueError: If the file path is invalid, file is not readable,
+                       or file is not a valid EPUB (empty, corrupted, wrong format)
         """
+        # Validate input path
+        if file_path is None:
+            raise ValueError("File path cannot be None")
+
+        # Convert to string for validation
+        if isinstance(file_path, (str, Path)):
+            path_str = str(file_path).strip()
+        else:
+            raise ValueError(
+                f"File path must be a string or Path object, "
+                f"not {type(file_path).__name__}"
+            )
+
+        # Check for empty or whitespace-only paths
+        if not path_str:
+            raise ValueError("File path cannot be empty")
+
+        # Check for invalid characters in path
+        invalid_chars = ["\x00", "\n", "\r", "\t"]
+        for char in invalid_chars:
+            if char in path_str:
+                raise ValueError("File path contains invalid characters")
+
+        # Convert to Path object
         file_path = Path(file_path)
 
         # Check if file exists
@@ -56,13 +87,46 @@ class Parser:
         # Basic EPUB validation - check if it's a ZIP file (EPUBs are ZIP archives)
         try:
             with open(file_path, "rb") as f:
+                # Check if file is empty
+                f.seek(0, 2)  # Seek to end
+                file_size = f.tell()
+                if file_size == 0:
+                    raise ValueError(
+                        f"File is not a valid EPUB (empty file): {file_path}"
+                    )
+
+                # Check if file is too small to be a valid ZIP
+                if file_size < 4:
+                    raise ValueError(
+                        f"File is not a valid EPUB (file too small): {file_path}"
+                    )
+
                 # Check ZIP magic number
+                f.seek(0)  # Seek to beginning
                 magic = f.read(4)
                 if magic != b"PK\x03\x04":
                     raise ValueError(
                         f"File is not a valid EPUB (not a ZIP archive): {file_path}"
                     )
+
+                # Try to open as ZIP to validate structure
+                try:
+                    with zipfile.ZipFile(file_path, "r") as test_zip:
+                        # Check if it has the minimum required files for an EPUB
+                        file_list = test_zip.namelist()
+                        if "META-INF/container.xml" not in file_list:
+                            raise ValueError(
+                                f"File is not a valid EPUB "
+                                f"(missing container.xml): {file_path}"
+                            )
+                except zipfile.BadZipFile:
+                    raise ValueError(
+                        f"File is not a valid EPUB "
+                        f"(corrupted ZIP structure): {file_path}"
+                    )
         except Exception as e:
+            if "File is not a valid EPUB" in str(e):
+                raise  # Re-raise our specific validation errors
             raise ValueError(f"Error reading EPUB file: {e}")
 
             # If we get here, the file is valid
@@ -78,16 +142,43 @@ class Parser:
         """
         Parse an EPUB file and extract chapter titles and text content.
 
+        This method performs the same comprehensive validation as load_epub
+        and then extracts chapter content from the EPUB file.
+
         Args:
-            file_path: Path to the EPUB file to parse
+            file_path: Path to the EPUB file to parse (str or Path object)
 
         Returns:
             List of tuples containing (chapter_title, chapter_text) pairs
 
         Raises:
             FileNotFoundError: If the EPUB file doesn't exist
-            ValueError: If the file is not a valid EPUB or cannot be parsed
+            ValueError: If the file path is invalid, file is not a valid EPUB,
+                       or the EPUB structure cannot be parsed
         """
+        # Validate input path (same validation as load_epub)
+        if file_path is None:
+            raise ValueError("File path cannot be None")
+
+        # Convert to string for validation
+        if isinstance(file_path, (str, Path)):
+            path_str = str(file_path).strip()
+        else:
+            raise ValueError(
+                f"File path must be a string or Path object, "
+                f"not {type(file_path).__name__}"
+            )
+
+        # Check for empty or whitespace-only paths
+        if not path_str:
+            raise ValueError("File path cannot be empty")
+
+        # Check for invalid characters in path
+        invalid_chars = ["\x00", "\n", "\r", "\t"]
+        for char in invalid_chars:
+            if char in path_str:
+                raise ValueError("File path contains invalid characters")
+
         # Validate the file first
         if not self.load_epub(file_path):
             raise ValueError(f"Failed to load EPUB file: {file_path}")
