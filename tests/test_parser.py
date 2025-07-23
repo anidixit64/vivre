@@ -132,3 +132,452 @@ class TestParser:
             # Clean up - make readable first
             os.chmod(temp_file_path, 0o644)
             temp_file_path.unlink()
+
+    def test_parse_english_epub(self):
+        """Test parsing the English EPUB file to extract chapters."""
+        from vivre.parser import Parser
+
+        # Get path to English test EPUB file
+        test_file_path = (
+            Path(__file__).parent
+            / "data"
+            / "Percy Jackson 1 - The Lightning Thief - Riordan, Rick.epub"
+        )
+
+        # Verify test file exists
+        assert test_file_path.exists(), f"Test file not found: {test_file_path}"
+
+        # Initialize parser and parse EPUB
+        parser = Parser()
+        chapters = parser.parse_epub(test_file_path)
+
+        # Verify the structure and content
+        assert isinstance(chapters, list), "chapters should be a list"
+        assert len(chapters) > 0, "should extract at least one chapter"
+
+        for i, (title, text) in enumerate(chapters):
+            assert isinstance(title, str), f"chapter {i} title should be a string"
+            assert isinstance(text, str), f"chapter {i} text should be a string"
+            assert len(title) > 0, f"chapter {i} title should not be empty"
+            # Skip text length check for cover/title pages
+            if "cover" not in title.lower() and "title" not in title.lower():
+                assert len(text) > 0, f"chapter {i} text should not be empty"
+            print(f"Chapter {i+1}: {title[:50]}...")
+            print(f"Text length: {len(text)} characters")
+
+    def test_extract_chapter_content_fallback(self):
+        """Test the fallback text extraction when XML parsing fails."""
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Test with malformed HTML that will cause XML parsing to fail
+        malformed_html = (
+            b"<html><body><h1>Test Chapter</h1><p>This is some text</p><unclosed_tag>"
+        )
+
+        title, text = parser._extract_chapter_content(malformed_html)
+
+        assert isinstance(title, str)
+        assert isinstance(text, str)
+        assert len(title) > 0
+        assert len(text) > 0
+        assert "Test Chapter" in title or "Test Chapter" in text
+
+    def test_parse_epub_missing_rootfile(self):
+        """Test parsing EPUB with missing rootfile element."""
+        import os
+        import tempfile
+        import zipfile
+
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Create an EPUB with container.xml but missing rootfile
+        with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as tmp_file:
+            with zipfile.ZipFile(tmp_file.name, "w") as zip_file:
+                # Add container.xml without rootfile
+                container_xml = """<?xml version="1.0" encoding="UTF-8"?>
+<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+  <rootfiles>
+  </rootfiles>
+</container>"""
+                zip_file.writestr("META-INF/container.xml", container_xml)
+
+        try:
+            with pytest.raises(
+                ValueError, match="Could not find content.opf in container.xml"
+            ):
+                parser.parse_epub(Path(tmp_file.name))
+        finally:
+            os.unlink(tmp_file.name)
+
+    def test_parse_epub_missing_full_path(self):
+        """Test parsing EPUB with missing full-path attribute."""
+        import os
+        import tempfile
+        import zipfile
+
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Create an EPUB with rootfile but missing full-path
+        with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as tmp_file:
+            with zipfile.ZipFile(tmp_file.name, "w") as zip_file:
+                # Add container.xml with rootfile but no full-path
+                container_xml = """<?xml version="1.0" encoding="UTF-8"?>
+<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+  <rootfiles>
+    <rootfile media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>"""
+                zip_file.writestr("META-INF/container.xml", container_xml)
+
+        try:
+            with pytest.raises(
+                ValueError, match="No full-path attribute found in rootfile"
+            ):
+                parser.parse_epub(Path(tmp_file.name))
+        finally:
+            os.unlink(tmp_file.name)
+
+    def test_parse_epub_empty_spine(self):
+        """Test parsing EPUB with empty spine."""
+        import os
+        import tempfile
+        import zipfile
+
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Create an EPUB with empty spine
+        with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as tmp_file:
+            with zipfile.ZipFile(tmp_file.name, "w") as zip_file:
+                # Add container.xml
+                container_xml = """<?xml version="1.0" encoding="UTF-8"?>
+<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+  <rootfiles>
+    <rootfile full-path="content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>"""
+                zip_file.writestr("META-INF/container.xml", container_xml)
+
+                # Add content.opf with empty spine
+                content_opf = """<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0">
+  <metadata>
+    <dc:title>Test Book</dc:title>
+  </metadata>
+  <manifest>
+    <item id="chapter1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine>
+  </spine>
+</package>"""
+                zip_file.writestr("content.opf", content_opf)
+
+        try:
+            with pytest.raises(ValueError, match="Error parsing EPUB XML"):
+                parser.parse_epub(Path(tmp_file.name))
+        finally:
+            os.unlink(tmp_file.name)
+
+    def test_parse_epub_missing_spine_with_valid_xml(self):
+        """Test parsing EPUB with missing spine but valid XML."""
+        import os
+        import tempfile
+        import zipfile
+
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Create an EPUB with valid XML but missing spine
+        with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as tmp_file:
+            with zipfile.ZipFile(tmp_file.name, "w") as zip_file:
+                # Add container.xml
+                container_xml = """<?xml version="1.0" encoding="UTF-8"?>
+<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+  <rootfiles>
+    <rootfile full-path="content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>"""
+                zip_file.writestr("META-INF/container.xml", container_xml)
+
+                # Add content.opf without spine
+                content_opf = """<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0">
+  <metadata>
+    <dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">Test Book</dc:title>
+  </metadata>
+  <manifest>
+    <item id="chapter1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+</package>"""
+                zip_file.writestr("content.opf", content_opf)
+
+        try:
+            with pytest.raises(ValueError, match="Could not find spine in content.opf"):
+                parser.parse_epub(Path(tmp_file.name))
+        finally:
+            os.unlink(tmp_file.name)
+
+    def test_parse_epub_empty_itemrefs(self):
+        """Test parsing EPUB with empty itemrefs in spine."""
+        import os
+        import tempfile
+        import zipfile
+
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Create an EPUB with empty itemrefs in spine
+        with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as tmp_file:
+            with zipfile.ZipFile(tmp_file.name, "w") as zip_file:
+                # Add container.xml
+                container_xml = """<?xml version="1.0" encoding="UTF-8"?>
+<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+  <rootfiles>
+    <rootfile full-path="content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>"""
+                zip_file.writestr("META-INF/container.xml", container_xml)
+
+                # Add content.opf with empty itemrefs in spine
+                content_opf = """<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0">
+  <metadata>
+    <dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">Test Book</dc:title>
+  </metadata>
+  <manifest>
+    <item id="chapter1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine>
+    <itemref idref=""/>
+  </spine>
+</package>"""
+                zip_file.writestr("content.opf", content_opf)
+
+        try:
+            # Empty idrefs are skipped, so this should return an empty list
+            chapters = parser.parse_epub(Path(tmp_file.name))
+            assert (
+                chapters == []
+            ), "Should return empty list when all itemrefs have empty idrefs"
+        finally:
+            os.unlink(tmp_file.name)
+
+    def test_parse_epub_missing_manifest(self):
+        """Test parsing EPUB with missing manifest."""
+        import os
+        import tempfile
+        import zipfile
+
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Create an EPUB with missing manifest
+        with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as tmp_file:
+            with zipfile.ZipFile(tmp_file.name, "w") as zip_file:
+                # Add container.xml
+                container_xml = """<?xml version="1.0" encoding="UTF-8"?>
+<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+  <rootfiles>
+    <rootfile full-path="content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>"""
+                zip_file.writestr("META-INF/container.xml", container_xml)
+
+                # Add content.opf without manifest
+                content_opf = """<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0">
+  <metadata>
+    <dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">Test Book</dc:title>
+  </metadata>
+  <spine>
+    <itemref idref="chapter1"/>
+  </spine>
+</package>"""
+                zip_file.writestr("content.opf", content_opf)
+
+        try:
+            # Missing manifest should result in empty chapters list
+            chapters = parser.parse_epub(Path(tmp_file.name))
+            assert chapters == [], "Should return empty list when manifest is missing"
+        finally:
+            os.unlink(tmp_file.name)
+
+    def test_parse_epub_malformed_structure(self):
+        """Test parsing EPUB with malformed structure."""
+        import os
+        import tempfile
+        import zipfile
+
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Create a malformed EPUB (ZIP file without proper EPUB structure)
+        with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as tmp_file:
+            with zipfile.ZipFile(tmp_file.name, "w") as zip_file:
+                # Add a file that's not container.xml
+                zip_file.writestr("test.txt", "This is not an EPUB")
+
+        try:
+            with pytest.raises(ValueError, match="Error reading EPUB file"):
+                parser.parse_epub(Path(tmp_file.name))
+        finally:
+            os.unlink(tmp_file.name)
+
+    def test_parse_epub_missing_spine(self):
+        """Test parsing EPUB with missing spine."""
+        import os
+        import tempfile
+        import zipfile
+
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Create an EPUB with container.xml but missing spine
+        with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as tmp_file:
+            with zipfile.ZipFile(tmp_file.name, "w") as zip_file:
+                # Add container.xml
+                container_xml = """<?xml version="1.0" encoding="UTF-8"?>
+<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+  <rootfiles>
+    <rootfile full-path="content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>"""
+                zip_file.writestr("META-INF/container.xml", container_xml)
+
+                # Add content.opf without spine
+                content_opf = """<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0">
+  <metadata>
+    <dc:title>Test Book</dc:title>
+  </metadata>
+  <manifest>
+    <item id="chapter1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+</package>"""
+                zip_file.writestr("content.opf", content_opf)
+
+        try:
+            with pytest.raises(ValueError, match="Error parsing EPUB XML"):
+                parser.parse_epub(Path(tmp_file.name))
+        finally:
+            os.unlink(tmp_file.name)
+
+    def test_is_title_or_cover_page_method(self):
+        """Test the _is_title_or_cover_page method."""
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Test title-based filtering
+        assert parser._is_title_or_cover_page("Cover", "chapter1.xhtml") is True
+        assert parser._is_title_or_cover_page("Title Page", "chapter1.xhtml") is True
+        assert parser._is_title_or_cover_page("Front Cover", "chapter1.xhtml") is True
+        assert parser._is_title_or_cover_page("Back Cover", "chapter1.xhtml") is True
+        assert parser._is_title_or_cover_page("TitlePage", "chapter1.xhtml") is True
+
+        # Test href-based filtering
+        assert parser._is_title_or_cover_page("Chapter 1", "cover.xhtml") is True
+        assert parser._is_title_or_cover_page("Chapter 1", "titlepage.xhtml") is True
+        assert parser._is_title_or_cover_page("Chapter 1", "front.xhtml") is True
+        assert parser._is_title_or_cover_page("Chapter 1", "back.xhtml") is True
+
+        # Test normal chapters (should not be filtered)
+        assert parser._is_title_or_cover_page("Chapter 1", "chapter1.xhtml") is False
+        assert parser._is_title_or_cover_page("The Beginning", "part1.xhtml") is False
+        assert parser._is_title_or_cover_page("Percy Jackson", "part2.xhtml") is False
+
+    def test_parse_spanish_epub(self):
+        """Test parsing the Spanish EPUB file to extract chapters."""
+        from vivre.parser import Parser
+
+        # Get path to Spanish test EPUB file
+        test_file_path = (
+            Path(__file__).parent / "data" / "El ladrón del rayo - Rick Riordan.epub"
+        )
+
+        # Verify test file exists
+        assert test_file_path.exists(), f"Test file not found: {test_file_path}"
+
+        # Initialize parser and parse EPUB
+        parser = Parser()
+        chapters = parser.parse_epub(test_file_path)
+
+        # Verify the structure and content
+        assert isinstance(chapters, list), "chapters should be a list"
+        assert len(chapters) > 0, "should extract at least one chapter"
+
+        for i, (title, text) in enumerate(chapters):
+            assert isinstance(title, str), f"chapter {i} title should be a string"
+            assert isinstance(text, str), f"chapter {i} text should be a string"
+            assert len(title) > 0, f"chapter {i} title should not be empty"
+            # Skip text length check for cover/title pages
+            if "cover" not in title.lower() and "title" not in title.lower():
+                assert len(text) > 0, f"chapter {i} text should not be empty"
+            print(f"Chapter {i+1}: {title[:50]}...")
+            print(f"Text length: {len(text)} characters")
+
+    def test_parse_epub_error_handling(self):
+        """Test error handling in parse_epub method."""
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Test with non-existent file
+        with pytest.raises(FileNotFoundError, match="EPUB file not found"):
+            parser.parse_epub(Path("nonexistent.epub"))
+
+        # Test with invalid EPUB (not a ZIP file)
+        invalid_epub = Path(__file__).parent / "data" / "invalid.epub"
+        invalid_epub.write_text("This is not an EPUB file")
+
+        try:
+            with pytest.raises(ValueError, match="Error reading EPUB file"):
+                parser.parse_epub(invalid_epub)
+        finally:
+            invalid_epub.unlink()  # Clean up
+
+    def test_parse_epub_structure(self):
+        """Test that parse_epub returns the correct data structure."""
+        from vivre.parser import Parser
+
+        # Get path to English test EPUB file
+        test_file_path = (
+            Path(__file__).parent
+            / "data"
+            / "Percy Jackson 1 - The Lightning Thief - Riordan, Rick.epub"
+        )
+
+        # Verify test file exists
+        assert test_file_path.exists(), f"Test file not found: {test_file_path}"
+
+        # Initialize parser
+        parser = Parser()
+        chapters = parser.parse_epub(test_file_path)
+
+        # Verify the data structure
+        assert isinstance(chapters, list), "chapters should be a list"
+        assert len(chapters) > 0, "should have at least one chapter"
+
+        for i, chapter in enumerate(chapters):
+            assert isinstance(chapter, tuple), f"chapter {i} should be a tuple"
+            assert len(chapter) == 2, f"chapter {i} should have exactly 2 elements"
+
+            title, text = chapter
+            assert isinstance(title, str), f"chapter {i} title should be a string"
+            assert isinstance(text, str), f"chapter {i} text should be a string"
+            assert len(title) > 0, f"chapter {i} title should not be empty"
+            # Skip text length check for cover/title pages
+            if "cover" not in title.lower() and "title" not in title.lower():
+                assert len(text) > 0, f"chapter {i} text should not be empty"
