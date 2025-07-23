@@ -6,10 +6,11 @@ This module provides functionality to load and validate EPUB files.
 
 import os
 import re
-import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
+
+from defusedxml import ElementTree as ET
 
 
 class Parser:
@@ -206,7 +207,7 @@ class Parser:
             text = self._extract_text_fallback(content_str)
             return title, text
 
-    def _extract_title(self, root: ET.Element) -> str:
+    def _extract_title(self, root: Any) -> str:
         """Extract title from XML element."""
         # Try different possible title locations
         title_selectors = [
@@ -230,7 +231,7 @@ class Parser:
 
         return "Untitled Chapter"
 
-    def _extract_text(self, root: ET.Element) -> str:
+    def _extract_text(self, root: Any) -> str:
         """Extract all text content from XML element."""
         # Get all text from body or root
         body = root.find(".//{*}body")
