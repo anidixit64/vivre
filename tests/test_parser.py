@@ -132,3 +132,99 @@ class TestParser:
             # Clean up - make readable first
             os.chmod(temp_file_path, 0o644)
             temp_file_path.unlink()
+
+    def test_parse_english_epub(self):
+        """Test parsing the English EPUB file to extract chapters."""
+        from vivre.parser import Parser
+
+        # Get path to English test EPUB file
+        test_file_path = (
+            Path(__file__).parent
+            / "data"
+            / "Percy Jackson 1 - The Lightning Thief - Riordan, Rick.epub"
+        )
+
+        # Verify test file exists
+        assert test_file_path.exists(), f"Test file not found: {test_file_path}"
+
+        # Initialize parser and parse EPUB
+        parser = Parser()
+        chapters = parser.parse_epub(test_file_path)
+
+        # Verify the structure and content
+        assert isinstance(chapters, list), "chapters should be a list"
+        assert len(chapters) > 0, "should extract at least one chapter"
+
+        for i, (title, text) in enumerate(chapters):
+            assert isinstance(title, str), f"chapter {i} title should be a string"
+            assert isinstance(text, str), f"chapter {i} text should be a string"
+            assert len(title) > 0, f"chapter {i} title should not be empty"
+            # Skip text length check for cover/title pages
+            if "cover" not in title.lower() and "title" not in title.lower():
+                assert len(text) > 0, f"chapter {i} text should not be empty"
+            print(f"Chapter {i+1}: {title[:50]}...")
+            print(f"Text length: {len(text)} characters")
+
+    def test_parse_spanish_epub(self):
+        """Test parsing the Spanish EPUB file to extract chapters."""
+        from vivre.parser import Parser
+
+        # Get path to Spanish test EPUB file
+        test_file_path = (
+            Path(__file__).parent / "data" / "El ladrón del rayo - Rick Riordan.epub"
+        )
+
+        # Verify test file exists
+        assert test_file_path.exists(), f"Test file not found: {test_file_path}"
+
+        # Initialize parser and parse EPUB
+        parser = Parser()
+        chapters = parser.parse_epub(test_file_path)
+
+        # Verify the structure and content
+        assert isinstance(chapters, list), "chapters should be a list"
+        assert len(chapters) > 0, "should extract at least one chapter"
+
+        for i, (title, text) in enumerate(chapters):
+            assert isinstance(title, str), f"chapter {i} title should be a string"
+            assert isinstance(text, str), f"chapter {i} text should be a string"
+            assert len(title) > 0, f"chapter {i} title should not be empty"
+            # Skip text length check for cover/title pages
+            if "cover" not in title.lower() and "title" not in title.lower():
+                assert len(text) > 0, f"chapter {i} text should not be empty"
+            print(f"Chapter {i+1}: {title[:50]}...")
+            print(f"Text length: {len(text)} characters")
+
+    def test_parse_epub_structure(self):
+        """Test that parse_epub returns the correct data structure."""
+        from vivre.parser import Parser
+
+        # Get path to English test EPUB file
+        test_file_path = (
+            Path(__file__).parent
+            / "data"
+            / "Percy Jackson 1 - The Lightning Thief - Riordan, Rick.epub"
+        )
+
+        # Verify test file exists
+        assert test_file_path.exists(), f"Test file not found: {test_file_path}"
+
+        # Initialize parser
+        parser = Parser()
+        chapters = parser.parse_epub(test_file_path)
+
+        # Verify the data structure
+        assert isinstance(chapters, list), "chapters should be a list"
+        assert len(chapters) > 0, "should have at least one chapter"
+
+        for i, chapter in enumerate(chapters):
+            assert isinstance(chapter, tuple), f"chapter {i} should be a tuple"
+            assert len(chapter) == 2, f"chapter {i} should have exactly 2 elements"
+
+            title, text = chapter
+            assert isinstance(title, str), f"chapter {i} title should be a string"
+            assert isinstance(text, str), f"chapter {i} text should be a string"
+            assert len(title) > 0, f"chapter {i} title should not be empty"
+            # Skip text length check for cover/title pages
+            if "cover" not in title.lower() and "title" not in title.lower():
+                assert len(text) > 0, f"chapter {i} text should not be empty"
