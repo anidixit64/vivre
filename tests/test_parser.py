@@ -429,7 +429,7 @@ class TestParser:
                 zip_file.writestr("test.txt", "This is not an EPUB")
 
         try:
-            with pytest.raises(ValueError, match="Error reading EPUB file"):
+            with pytest.raises(ValueError, match="File is not a valid EPUB"):
                 parser.parse_epub(Path(tmp_file.name))
         finally:
             os.unlink(tmp_file.name)
@@ -543,7 +543,7 @@ class TestParser:
         invalid_epub.write_text("This is not an EPUB file")
 
         try:
-            with pytest.raises(ValueError, match="Error reading EPUB file"):
+            with pytest.raises(ValueError, match="File is not a valid EPUB"):
                 parser.parse_epub(invalid_epub)
         finally:
             invalid_epub.unlink()  # Clean up
