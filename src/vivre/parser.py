@@ -39,6 +39,30 @@ class Parser:
             FileNotFoundError: If the EPUB file doesn't exist
             ValueError: If the file is not readable or not a valid EPUB
         """
+        # Validate input path
+        if file_path is None:
+            raise ValueError("File path cannot be None")
+
+        # Convert to string for validation
+        if isinstance(file_path, (str, Path)):
+            path_str = str(file_path).strip()
+        else:
+            raise ValueError(
+                f"File path must be a string or Path object, "
+                f"not {type(file_path).__name__}"
+            )
+
+        # Check for empty or whitespace-only paths
+        if not path_str:
+            raise ValueError("File path cannot be empty")
+
+        # Check for invalid characters in path
+        invalid_chars = ["\x00", "\n", "\r", "\t"]
+        for char in invalid_chars:
+            if char in path_str:
+                raise ValueError("File path contains invalid characters")
+
+        # Convert to Path object
         file_path = Path(file_path)
 
         # Check if file exists
@@ -88,6 +112,29 @@ class Parser:
             FileNotFoundError: If the EPUB file doesn't exist
             ValueError: If the file is not a valid EPUB or cannot be parsed
         """
+        # Validate input path (same validation as load_epub)
+        if file_path is None:
+            raise ValueError("File path cannot be None")
+
+        # Convert to string for validation
+        if isinstance(file_path, (str, Path)):
+            path_str = str(file_path).strip()
+        else:
+            raise ValueError(
+                f"File path must be a string or Path object, "
+                f"not {type(file_path).__name__}"
+            )
+
+        # Check for empty or whitespace-only paths
+        if not path_str:
+            raise ValueError("File path cannot be empty")
+
+        # Check for invalid characters in path
+        invalid_chars = ["\x00", "\n", "\r", "\t"]
+        for char in invalid_chars:
+            if char in path_str:
+                raise ValueError("File path contains invalid characters")
+
         # Validate the file first
         if not self.load_epub(file_path):
             raise ValueError(f"Failed to load EPUB file: {file_path}")
