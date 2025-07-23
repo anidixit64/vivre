@@ -211,6 +211,9 @@ class Parser:
                 # Get the base directory for the content files
                 content_dir = Path(content_opf_path).parent
 
+                # Step 3: Extract chapter titles from table of contents
+                chapter_titles = self._extract_chapter_titles(epub_zip, content_dir)
+
                 # Find the spine to get the reading order
                 spine_elem = content_root.find(".//{*}spine")
                 if spine_elem is None:
@@ -221,7 +224,7 @@ class Parser:
                 if not itemrefs:
                     raise ValueError("No itemref elements found in spine")
 
-                # Step 3: Extract chapter content for each item in the spine
+                # Step 4: Extract chapter content for each item in the spine
                 for itemref in itemrefs:
                     idref = itemref.get("idref")
                     if not idref:
@@ -240,6 +243,10 @@ class Parser:
                     if not href:
                         continue
 
+                    # Skip non-story content based on href pattern
+                    if self._is_title_or_cover_page("", href):
+                        continue
+
                     # Construct the full path to the chapter file
                     chapter_path = content_dir / href
 
@@ -250,8 +257,20 @@ class Parser:
                             chapter_content
                         )
 
-                        # Skip title/cover pages
-                        if self._is_title_or_cover_page(chapter_title, href):
+                        # Use title from table of contents if available
+                        if href in chapter_titles:
+                            chapter_title = chapter_titles[href]
+
+                        # Skip if still a generic title
+                        if self._is_generic_title(chapter_title):
+                            continue
+
+                        # Skip if text is too short (likely just a title page)
+                        if len(chapter_text.strip()) < 100:
+                            continue
+
+                        # Skip back matter (files with 'bm' in the name)
+                        if "bm" in href.lower():
                             continue
 
                         chapters.append((chapter_title, chapter_text))
@@ -312,15 +331,143 @@ class Parser:
         for selector in title_selectors:
             title_elem = root.find(selector)
             if title_elem is not None and title_elem.text:
-                return title_elem.text.strip()
+                title_text = title_elem.text.strip()
+                # Skip generic titles that are likely not chapter titles
+                if title_text and not self._is_generic_title(title_text):
+                    return title_text
 
         # If no title found, try to get the first h1 or h2 text
         for tag in ["h1", "h2", "h3"]:
             for elem in root.iter():
                 if elem.tag.endswith(tag) and elem.text and elem.text.strip():
-                    return elem.text.strip()
+                    title_text = elem.text.strip()
+                    if not self._is_generic_title(title_text):
+                        return title_text
 
         return "Untitled Chapter"
+
+    def _is_generic_title(self, title: str) -> bool:
+        """
+        Check if a title is generic and likely not a chapter title.
+
+        Args:
+            title: The title to check
+
+        Returns:
+            True if the title is generic, False otherwise
+        """
+        title_lower = title.lower()
+
+        # Generic titles that are likely not chapter titles
+        generic_titles = [
+            "magic tree house",
+            "vacation under the volcano",
+            "vacaciones al pie de un volcán",
+            "percy jackson",
+            "the lightning thief",
+            "el ladrón del rayo",
+        ]
+
+        # Check if title matches any generic title
+        for generic in generic_titles:
+            if generic in title_lower:
+                return True
+
+        # Check if title is too short (likely not a chapter title)
+        if len(title.strip()) < 3:
+            return True
+
+        # Check if title is just the book title repeated
+        if title_lower.count(title_lower.split()[0]) > 1:
+            return True
+
+        return False
+
+    def _extract_chapter_titles(
+        self, epub_zip: zipfile.ZipFile, content_dir: Path
+    ) -> dict:
+        """
+        Extract chapter titles from the table of contents.
+
+        Args:
+            epub_zip: The EPUB zip file
+            content_dir: Base directory for content files
+
+        Returns:
+            Dictionary mapping href to chapter title
+        """
+        chapter_titles = {}
+
+        try:
+            # Look for table of contents file
+            toc_files = ["toc.ncx", "OEBPS/toc.ncx", "OEBPS/html/toc.ncx"]
+
+            toc_content = None
+            for toc_file in toc_files:
+                try:
+                    toc_content = epub_zip.read(toc_file)
+                    break
+                except KeyError:
+                    continue
+
+            if toc_content:
+                # Parse NCX file for chapter titles
+                toc_root = ET.fromstring(toc_content)
+                nav_points = toc_root.findall(".//{*}navPoint")
+
+                for nav_point in nav_points:
+                    # Get the title
+                    title_elem = nav_point.find(".//{*}text")
+                    if title_elem is not None and title_elem.text:
+                        title = title_elem.text.strip()
+
+                        # Get the href
+                        content_elem = nav_point.find(".//{*}content")
+                        if content_elem is not None:
+                            src = content_elem.get("src")
+                            if src:
+                                # Extract the filename from src (remove anchor)
+                                href = src.split("#")[0]
+                                chapter_titles[href] = title
+
+        except Exception as e:
+            print(f"Warning: Could not extract chapter titles from TOC: {e}")
+
+        # If NCX parsing failed, try to find HTML TOC
+        if not chapter_titles:
+            try:
+                # Look for HTML table of contents
+                toc_html_files = [
+                    "OEBPS/Osbo_9780375894701_epub_toc_r1.htm",
+                    "OEBPS/html/toc.html",
+                    "toc.html",
+                ]
+
+                for toc_file in toc_html_files:
+                    try:
+                        toc_content = epub_zip.read(toc_file)
+                        break
+                    except KeyError:
+                        continue
+                else:
+                    return chapter_titles
+
+                # Parse HTML TOC for chapter links
+                toc_root = ET.fromstring(toc_content)
+                links = toc_root.findall(".//{*}a")
+
+                for link in links:
+                    href = link.get("href")
+                    if href and link.text:
+                        title = link.text.strip()
+                        # Clean up href (remove anchor if present)
+                        href = href.split("#")[0]
+                        chapter_titles[href] = title
+
+            except Exception as e:
+                print(f"Warning: Could not extract chapter titles from HTML TOC: {e}")
+
+        return chapter_titles
 
     def _extract_text(self, root: Any) -> str:
         """Extract all text content from XML element."""
@@ -354,12 +501,23 @@ class Parser:
             r"<title[^>]*>(.*?)</title>", content, re.IGNORECASE | re.DOTALL
         )
         if title_match:
-            return title_match.group(1).strip()
+            title_text = title_match.group(1).strip()
+            if not self._is_generic_title(title_text):
+                return title_text
 
         # Look for h1 tags
         h1_match = re.search(r"<h1[^>]*>(.*?)</h1>", content, re.IGNORECASE | re.DOTALL)
         if h1_match:
-            return h1_match.group(1).strip()
+            title_text = h1_match.group(1).strip()
+            if not self._is_generic_title(title_text):
+                return title_text
+
+        # Look for h2 tags
+        h2_match = re.search(r"<h2[^>]*>(.*?)</h2>", content, re.IGNORECASE | re.DOTALL)
+        if h2_match:
+            title_text = h2_match.group(1).strip()
+            if not self._is_generic_title(title_text):
+                return title_text
 
         return "Untitled Chapter"
 
@@ -384,7 +542,7 @@ class Parser:
 
     def _is_title_or_cover_page(self, title: str, href: str) -> bool:
         """
-        Check if a chapter is a title or cover page that should be ignored.
+        Check if a chapter is a title, cover page, or other non-story content.
 
         Args:
             title: The chapter title
@@ -393,20 +551,101 @@ class Parser:
         Returns:
             True if the chapter should be ignored, False otherwise
         """
-        # Check title for common cover/title indicators
+        # Check title for common non-story content indicators
         title_lower = title.lower()
-        if any(
-            keyword in title_lower
-            for keyword in ["cover", "title", "titlepage", "front cover", "back cover"]
-        ):
+        non_story_keywords = [
+            "cover",
+            "title",
+            "titlepage",
+            "front cover",
+            "back cover",
+            "acknowledgement",
+            "acknowledgments",
+            "acknowledgements",
+            "table of contents",
+            "contents",
+            "toc",
+            "copyright",
+            "legal",
+            "disclaimer",
+            "about the author",
+            "author bio",
+            "biography",
+            "translator",
+            "translation",
+            "translator's note",
+            "preface",
+            "foreword",
+            "introduction",
+            "prologue",
+            "epilogue",
+            "afterword",
+            "appendix",
+            "index",
+            "bibliography",
+            "references",
+            "citations",
+            "notes",
+            "glossary",
+            "credits",
+            "dedication",
+            "colophon",
+        ]
+
+        if any(keyword in title_lower for keyword in non_story_keywords):
             return True
 
-        # Check href for common cover/title file patterns
+        # Check href for common non-story file patterns
         href_lower = href.lower()
-        if any(
-            pattern in href_lower
-            for pattern in ["cover", "title", "titlepage", "front", "back"]
-        ):
+        non_story_patterns = [
+            "cover",
+            "title",
+            "titlepage",
+            "front",
+            "back",
+            "toc",
+            "contents",
+            "copyright",
+            "legal",
+            "acknowledgement",
+            "preface",
+            "foreword",
+            "epilogue",
+            "afterword",
+            "appendix",
+            "index",
+            "bibliography",
+            "references",
+            "glossary",
+            "fm",
+            "ded",
+            "cop",
+            "adc",
+            "author",
+        ]
+
+        if any(pattern in href_lower for pattern in non_story_patterns):
+            return True
+
+        # Check for specific file patterns that indicate non-story content
+        # Front matter files (fm1, fm2, etc.)
+        if re.search(r"fm\d+", href_lower):
+            return True
+
+        # Dedication files
+        if re.search(r"ded", href_lower):
+            return True
+
+        # Copyright files
+        if re.search(r"cop", href_lower):
+            return True
+
+        # Acknowledgements files
+        if re.search(r"adc", href_lower):
+            return True
+
+        # Front split files
+        if re.search(r"front_split", href_lower):
             return True
 
         return False

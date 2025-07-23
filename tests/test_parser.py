@@ -833,3 +833,211 @@ class TestParser:
                 ValueError, match="File path must be a string or Path object"
             ):
                 parser.parse_epub(invalid_path)
+
+    def test_parse_vacation_under_volcano_english(self):
+        """Test parsing the English Vacation Under the Volcano EPUB file."""
+        from vivre.parser import Parser
+
+        # Get path to English test EPUB file
+        test_file_path = (
+            Path(__file__).parent
+            / "data"
+            / "Vacation Under the Volcano - Mary Pope Osborne.epub"
+        )
+
+        # Verify test file exists
+        assert test_file_path.exists(), f"Test file not found: {test_file_path}"
+        assert test_file_path.is_file(), f"Path is not a file: {test_file_path}"
+
+        # Initialize parser and parse EPUB
+        parser = Parser()
+        chapters = parser.parse_epub(test_file_path)
+
+        # Verify the structure and content
+        assert isinstance(chapters, list), "chapters should be a list"
+        assert (
+            len(chapters) == 2
+        ), f"should extract exactly 2 chapters, got {len(chapters)}"
+
+        # Check chapter titles and content
+        expected_titles = ["Chapter 1 - A Secret Code", "Chapter 2 - The End Is Near"]
+
+        for i, (title, text) in enumerate(chapters):
+            assert isinstance(title, str), f"chapter {i} title should be a string"
+            assert isinstance(text, str), f"chapter {i} text should be a string"
+            assert len(title) > 0, f"chapter {i} title should not be empty"
+            assert len(text) > 0, f"chapter {i} text should not be empty"
+
+            # Check that we got the expected chapter titles
+            assert (
+                title == expected_titles[i]
+            ), f"Expected '{expected_titles[i]}', got '{title}'"
+
+            # Verify the text contains story content (not just metadata)
+            assert len(text) > 100, f"chapter {i} should have substantial text content"
+
+            print(f"Chapter {i+1}: {title}")
+            print(f"Text length: {len(text)} characters")
+            print(f"Text preview: {text[:100]}...")
+
+    def test_parse_vacation_under_volcano_spanish(self):
+        """Test parsing the Spanish Vacation Under the Volcano EPUB file."""
+        from vivre.parser import Parser
+
+        # Get path to Spanish test EPUB file
+        test_file_path = (
+            Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
+        )
+
+        # Verify test file exists
+        assert test_file_path.exists(), f"Test file not found: {test_file_path}"
+        assert test_file_path.is_file(), f"Path is not a file: {test_file_path}"
+
+        # Initialize parser and parse EPUB
+        parser = Parser()
+        chapters = parser.parse_epub(test_file_path)
+
+        # Verify the structure and content
+        assert isinstance(chapters, list), "chapters should be a list"
+        assert (
+            len(chapters) == 2
+        ), f"should extract exactly 2 chapters, got {len(chapters)}"
+
+        # Check chapter titles and content
+        expected_titles = ["1. Código secreto", "2. El fin está cerca"]
+
+        for i, (title, text) in enumerate(chapters):
+            assert isinstance(title, str), f"chapter {i} title should be a string"
+            assert isinstance(text, str), f"chapter {i} text should be a string"
+            assert len(title) > 0, f"chapter {i} title should not be empty"
+            assert len(text) > 0, f"chapter {i} text should not be empty"
+
+            # Check that we got the expected chapter titles
+            assert (
+                title == expected_titles[i]
+            ), f"Expected '{expected_titles[i]}', got '{title}'"
+
+            # Verify the text contains story content (not just metadata)
+            assert len(text) > 100, f"chapter {i} should have substantial text content"
+
+            print(f"Chapter {i+1}: {title}")
+            print(f"Text length: {len(text)} characters")
+            print(f"Text preview: {text[:100]}...")
+
+    def test_filter_non_story_content(self):
+        """Test that the parser correctly filters out non-story content."""
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Test various non-story content titles that should be filtered out
+        non_story_titles = [
+            "Cover",
+            "Title Page",
+            "Front Cover",
+            "Back Cover",
+            "Acknowledgements",
+            "Acknowledgments",
+            "Table of Contents",
+            "Contents",
+            "Copyright",
+            "Legal Notice",
+            "About the Author",
+            "Author Biography",
+            "Translator's Note",
+            "Preface",
+            "Foreword",
+            "Introduction",
+            "Prologue",
+            "Epilogue",
+            "Afterword",
+            "Appendix",
+            "Index",
+            "Bibliography",
+            "References",
+            "Glossary",
+            "Credits",
+            "Dedication",
+        ]
+
+        for title in non_story_titles:
+            assert (
+                parser._is_title_or_cover_page(title, "test.xhtml") is True
+            ), f"Should filter out: {title}"
+
+        # Test story content titles that should NOT be filtered out
+        story_titles = [
+            "Chapter 1",
+            "Chapter 1 - A Secret Code",
+            "1. Código secreto",
+            "The Beginning",
+            "A New Adventure",
+            "The Mystery Deepens",
+            "The Final Battle",
+            "Percy Jackson",
+            "The Lightning Thief",
+            "Part One",
+            "Section 1",
+        ]
+
+        for title in story_titles:
+            assert (
+                parser._is_title_or_cover_page(title, "chapter1.xhtml") is False
+            ), f"Should NOT filter out: {title}"
+
+    def test_epub_content_filtering_integration(self):
+        """Test that EPUB parsing correctly filters non-story content in real files."""
+        from vivre.parser import Parser
+
+        # Test with both Vacation Under the Volcano files
+        test_files = [
+            ("Vacation Under the Volcano - Mary Pope Osborne.epub", 2),
+            ("Vacaciones al pie de un volcán.epub", 2),
+        ]
+
+        for filename, expected_chapters in test_files:
+            test_file_path = Path(__file__).parent / "data" / filename
+
+            # Verify test file exists
+            assert test_file_path.exists(), f"Test file not found: {test_file_path}"
+
+            # Initialize parser and parse EPUB
+            parser = Parser()
+            chapters = parser.parse_epub(test_file_path)
+
+            # Verify we get the expected number of chapters
+            assert (
+                len(chapters) == expected_chapters
+            ), f"Expected {expected_chapters} chapters for {filename}, got {len(chapters)}"
+
+            # Verify all chapters have substantial content
+            for i, (title, text) in enumerate(chapters):
+                assert (
+                    len(title) > 0
+                ), f"Chapter {i} title should not be empty in {filename}"
+                assert (
+                    len(text) > 100
+                ), f"Chapter {i} should have substantial text in {filename}"
+
+                # Verify the title doesn't contain non-story keywords
+                title_lower = title.lower()
+                non_story_keywords = [
+                    "cover",
+                    "title",
+                    "acknowledgement",
+                    "contents",
+                    "copyright",
+                    "about the author",
+                    "translator",
+                    "preface",
+                    "epilogue",
+                ]
+
+                for keyword in non_story_keywords:
+                    assert (
+                        keyword not in title_lower
+                    ), f"Chapter title '{title}' should not contain '{keyword}' in {filename}"
+
+            print(
+                f"✓ {filename}: Extracted {len(chapters)} story chapters successfully"
+            )
