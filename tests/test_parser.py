@@ -16,7 +16,7 @@ class TestParser:
 
         parser = Parser()
         assert parser is not None
-        assert not parser.is_loaded
+        assert not parser.is_loaded()
 
     def test_load_english_epub(self):
         """Test loading the English EPUB file."""
@@ -39,7 +39,7 @@ class TestParser:
 
         # Check if file was loaded successfully
         assert result is True, "EPUB should be loaded successfully"
-        assert parser.is_loaded, "Parser should indicate file is loaded"
+        assert parser.is_loaded(), "Parser should indicate file is loaded"
         assert (
             parser.file_path == test_file_path
         ), "Parser should store the correct file path"
@@ -63,7 +63,7 @@ class TestParser:
 
         # Check if file was loaded successfully
         assert result is True, "EPUB should be loaded successfully"
-        assert parser.is_loaded, "Parser should indicate file is loaded"
+        assert parser.is_loaded(), "Parser should indicate file is loaded"
         assert (
             parser.file_path == test_file_path
         ), "Parser should store the correct file path"
@@ -87,3 +87,48 @@ class TestParser:
 
         with pytest.raises(ValueError, match="Path is not a file"):
             parser.load_epub(directory_path)
+
+    def test_load_invalid_epub_file(self):
+        """Test that loading a non-ZIP file raises ValueError."""
+        import tempfile
+
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Create a temporary file that's not a ZIP
+        with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as temp_file:
+            temp_file.write(b"This is not a ZIP file")
+            temp_file_path = Path(temp_file.name)
+
+        try:
+            with pytest.raises(ValueError, match="not a valid EPUB"):
+                parser.load_epub(temp_file_path)
+        finally:
+            # Clean up
+            temp_file_path.unlink()
+
+    def test_load_unreadable_file(self):
+        """Test that loading an unreadable file raises ValueError."""
+        import os
+        import tempfile
+
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(suffix=".epub", delete=False) as temp_file:
+            temp_file.write(b"PK\x03\x04fake zip content")
+            temp_file_path = Path(temp_file.name)
+
+        try:
+            # Make file unreadable
+            os.chmod(temp_file_path, 0o000)
+
+            with pytest.raises(ValueError, match="not readable"):
+                parser.load_epub(temp_file_path)
+        finally:
+            # Clean up - make readable first
+            os.chmod(temp_file_path, 0o644)
+            temp_file_path.unlink()
