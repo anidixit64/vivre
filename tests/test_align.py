@@ -341,3 +341,151 @@ class TestAligner:
                 assert (
                     "abuela" in target_seg.lower()
                 ), "Third target segment should contain 'abuela'"
+
+    def test_align_empty_source_sentences(self):
+        """Test alignment when source text has minimal sentences."""
+        aligner = Aligner()
+
+        source_text = "   .   .   "  # Only punctuation and whitespace
+        target_text = "Hello world. How are you?"
+
+        alignment = aligner.align(source_text, target_text)
+
+        # Should have alignments (algorithm finds sentences even in edge cases)
+        assert (
+            len(alignment) > 0
+        ), "Should have alignments even with minimal source sentences"
+
+        # Each alignment should have content
+        for source_seg, target_seg in alignment:
+            assert len(target_seg) > 0, "Target segment should have content"
+
+    def test_align_empty_target_sentences(self):
+        """Test alignment when target text has minimal sentences."""
+        aligner = Aligner()
+
+        source_text = "Hello world. How are you?"
+        target_text = "   .   .   "  # Only punctuation and whitespace
+
+        alignment = aligner.align(source_text, target_text)
+
+        # Should have alignments (algorithm finds sentences even in edge cases)
+        assert (
+            len(alignment) > 0
+        ), "Should have alignments even with minimal target sentences"
+
+        # Each alignment should have content
+        for source_seg, target_seg in alignment:
+            assert len(source_seg) > 0, "Source segment should have content"
+
+    def test_align_both_minimal_sentences(self):
+        """Test alignment when both texts have minimal sentences."""
+        aligner = Aligner()
+
+        source_text = "   .   .   "
+        target_text = "   !   ?   "
+
+        alignment = aligner.align(source_text, target_text)
+
+        # Should have alignments (algorithm finds sentences even in edge cases)
+        assert (
+            len(alignment) > 0
+        ), "Should have alignments even with minimal sentences in both texts"
+
+    def test_align_single_source_multiple_target(self):
+        """Test alignment with one source sentence and multiple target sentences."""
+        aligner = Aligner()
+
+        source_text = "This is a long sentence that should be split."
+        target_text = "This is. A long sentence. That should be split."
+
+        alignment = aligner.align(source_text, target_text)
+
+        # Should have at least one alignment
+        assert len(alignment) > 0, "Should have at least one alignment"
+
+        # Each alignment should have content (may have empty segments due to algorithm behavior)
+        for source_seg, target_seg in alignment:
+            # At least one segment should have content
+            assert (
+                len(source_seg) > 0 or len(target_seg) > 0
+            ), "At least one segment should have content"
+
+    def test_align_multiple_source_single_target(self):
+        """Test alignment with multiple source sentences and one target sentence."""
+        aligner = Aligner()
+
+        source_text = "This is. A long sentence. That should be split."
+        target_text = "This is a long sentence that should be split."
+
+        alignment = aligner.align(source_text, target_text)
+
+        # Should have at least one alignment
+        assert len(alignment) > 0, "Should have at least one alignment"
+
+        # Each alignment should have content (may have empty segments due to algorithm behavior)
+        for source_seg, target_seg in alignment:
+            # At least one segment should have content
+            assert (
+                len(source_seg) > 0 or len(target_seg) > 0
+            ), "At least one segment should have content"
+
+    def test_align_edge_case_reconstruction(self):
+        """Test alignment edge case that exercises the reconstruction logic."""
+        aligner = Aligner()
+
+        # Use very different length texts to force complex alignment
+        source_text = "A. B. C. D. E."
+        target_text = "Very long sentence that should align with multiple short ones."
+
+        alignment = aligner.align(source_text, target_text)
+
+        # Should have at least one alignment
+        assert len(alignment) > 0, "Should have at least one alignment"
+
+        # Each alignment should have content (may have empty segments due to algorithm behavior)
+        for source_seg, target_seg in alignment:
+            # At least one segment should have content
+            assert (
+                len(source_seg) > 0 or len(target_seg) > 0
+            ), "At least one segment should have content"
+
+    def test_align_cost_function_edge_cases(self):
+        """Test alignment cost function with various edge cases."""
+        aligner = Aligner()
+
+        # Test with very long sentences to trigger the large alignment penalty
+        source_text = "A" * 100 + ". " + "B" * 100 + "."
+        target_text = "C" * 50 + ". " + "D" * 50 + "."
+
+        alignment = aligner.align(source_text, target_text)
+
+        # Should have alignments
+        assert (
+            len(alignment) > 0
+        ), "Should have alignments even with very long sentences"
+
+        # Each alignment should have content
+        for source_seg, target_seg in alignment:
+            assert (
+                len(source_seg) > 0 or len(target_seg) > 0
+            ), "At least one segment should have content"
+
+    def test_align_dp_algorithm_edge_cases(self):
+        """Test DP algorithm with edge cases that exercise different alignment types."""
+        aligner = Aligner()
+
+        # Test with many short sentences to exercise various alignment combinations
+        source_text = "A. B. C. D. E. F. G. H. I. J."
+        target_text = "1. 2. 3. 4. 5. 6. 7. 8. 9. 10."
+
+        alignment = aligner.align(source_text, target_text)
+
+        # Should have alignments
+        assert len(alignment) > 0, "Should have alignments with many short sentences"
+
+        # Each alignment should have content
+        for source_seg, target_seg in alignment:
+            assert (
+                len(source_seg) > 0 or len(target_seg) > 0
+            ), "At least one segment should have content"
