@@ -18,21 +18,75 @@ class TestSegmenter:
         assert hasattr(segmenter, "get_supported_languages")
         assert hasattr(segmenter, "is_language_supported")
 
-    def test_get_supported_languages(self):
+    def test_segmenter_unsupported_language_error(self):
+        """Test that unsupported language raises ValueError."""
+        from vivre.segmenter import Segmenter
+
+        segmenter = Segmenter()
+
+        with pytest.raises(ValueError, match="Unsupported language"):
+            segmenter.segment("Hello world", language="xx")
+
+    def test_segmenter_invalid_language_code(self):
+        """Test that invalid language code raises ValueError."""
+        from vivre.segmenter import Segmenter
+
+        segmenter = Segmenter()
+
+        with pytest.raises(ValueError, match="Unsupported language"):
+            segmenter.segment("Hello world", language="invalid")
+
+    def test_segmenter_empty_text_after_stripping(self):
+        """Test segmentation of text that becomes empty after stripping."""
+        from vivre.segmenter import Segmenter
+
+        segmenter = Segmenter()
+
+        result = segmenter.segment("   \n\t   ")
+        assert result == []
+
+    def test_segmenter_whitespace_only_text(self):
+        """Test segmentation of whitespace-only text."""
+        from vivre.segmenter import Segmenter
+
+        segmenter = Segmenter()
+
+        result = segmenter.segment("   \n\t   ")
+        assert result == []
+
+    def test_segmenter_none_text(self):
+        """Test segmentation of None text."""
+        from vivre.segmenter import Segmenter
+
+        segmenter = Segmenter()
+
+        result = segmenter.segment(None)
+        assert result == []
+
+    def test_segmenter_empty_string(self):
+        """Test segmentation of empty string."""
+        from vivre.segmenter import Segmenter
+
+        segmenter = Segmenter()
+
+        result = segmenter.segment("")
+        assert result == []
+
+    def test_segmenter_get_supported_languages(self):
         """Test getting supported languages."""
         from vivre.segmenter import Segmenter
 
         segmenter = Segmenter()
-        languages = segmenter.get_supported_languages()
 
+        languages = segmenter.get_supported_languages()
         assert isinstance(languages, list)
         assert len(languages) > 0
         assert "en" in languages
         assert "es" in languages
         assert "fr" in languages
 
-    def test_is_language_supported(self):
-        """Test language support checking."""
+    def test_segmenter_is_language_supported(self):
+        """Test checking if language is supported."""
         from vivre.segmenter import Segmenter
 
         segmenter = Segmenter()
@@ -41,6 +95,25 @@ class TestSegmenter:
         assert segmenter.is_language_supported("es") is True
         assert segmenter.is_language_supported("fr") is True
         assert segmenter.is_language_supported("invalid") is False
+        assert segmenter.is_language_supported("") is False
+
+    def test_segmenter_language_detection_edge_cases(self):
+        """Test language detection with edge cases."""
+        from vivre.segmenter import Segmenter
+
+        segmenter = Segmenter()
+
+        # Test with numbers only (should default to English)
+        result = segmenter.segment("123 456 789")
+        assert isinstance(result, list)
+
+        # Test with special characters only (should default to English)
+        result = segmenter.segment("!@#$%^&*()")
+        assert isinstance(result, list)
+
+        # Test with mixed Latin and non-Latin characters (should default to English)
+        result = segmenter.segment("Hello 123 !@#")
+        assert isinstance(result, list)
 
     def test_segment_text_basic(self):
         """Test basic text segmentation."""
@@ -570,3 +643,56 @@ class TestSegmenter:
             else:
                 assert len(sentence) >= 3, f"Sentence too short: '{sentence}'"
             assert len(sentence) <= 1000, f"Sentence too long: '{sentence}'"
+
+    def test_segmenter_language_detection_various_languages(self):
+        """Test language detection for various languages."""
+        from unittest.mock import patch
+
+        from vivre.segmenter import Segmenter
+
+        segmenter = Segmenter()
+
+        # Test languages with installed models
+        result = segmenter.segment("Hello world")
+        assert isinstance(result, list)
+
+        result = segmenter.segment("Hola mundo")
+        assert isinstance(result, list)
+
+        result = segmenter.segment("Bonjour le monde")
+        assert isinstance(result, list)
+
+        result = segmenter.segment("Ciao mondo")
+        assert isinstance(result, list)
+
+        # Test language detection with mock for unsupported languages
+        with patch.object(segmenter, "_detect_language", return_value="en"):
+            result = segmenter.segment("Привет мир")
+            assert isinstance(result, list)
+
+            result = segmenter.segment("こんにちは世界")
+            assert isinstance(result, list)
+
+            result = segmenter.segment("안녕하세요 세계")
+            assert isinstance(result, list)
+
+            result = segmenter.segment("مرحبا بالعالم")
+            assert isinstance(result, list)
+
+            result = segmenter.segment("สวัสดีชาวโลก")
+            assert isinstance(result, list)
+
+            result = segmenter.segment("नमस्ते दुनिया")
+            assert isinstance(result, list)
+
+            result = segmenter.segment("Hallo Welt")
+            assert isinstance(result, list)
+
+            result = segmenter.segment("Olá mundo")
+            assert isinstance(result, list)
+
+            result = segmenter.segment("Hallo wereld")
+            assert isinstance(result, list)
+
+            result = segmenter.segment("Cześć świecie")
+            assert isinstance(result, list)

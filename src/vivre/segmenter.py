@@ -131,7 +131,7 @@ class Segmenter:
             OSError: If the required spaCy model is not installed.
             ValueError: If the language is not supported.
         """
-        if not text or not text.strip():
+        if text is None or not text or not text.strip():
             return []
 
         # Detect language if not provided

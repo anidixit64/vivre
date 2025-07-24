@@ -805,6 +805,9 @@ class VivreParser:
         if not title or title == "Untitled Chapter":
             return text
 
+        # First, normalize whitespace in the text
+        text = re.sub(r"\s+", " ", text.strip())
+
         # Try exact match first
         title_escaped = re.escape(title)
         text = re.sub(f"^{title_escaped}\\s*", "", text, flags=re.IGNORECASE)
