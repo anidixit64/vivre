@@ -481,3 +481,92 @@ class TestSegmenter:
         ), "should have exactly 2 segments, not split on acronyms"
         assert "U.S.A." in segments[0], "first segment should include acronym"
         assert "U.K." in segments[1], "second segment should include acronym"
+
+    def test_segment_spanish_epub_chapter(self):
+        """Test segmentation on second chapter from Spanish EPUB file."""
+        from pathlib import Path
+
+        from vivre.parser import VivreParser
+        from vivre.segmenter import Segmenter
+
+        # Path to the Spanish EPUB file
+        epub_path = (
+            Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
+        )
+
+        # Ensure the file exists
+        assert epub_path.exists(), f"Spanish EPUB file not found: {epub_path}"
+
+        # Parse the EPUB file
+        parser = VivreParser()
+        chapters = parser.parse_epub(epub_path)
+
+        # Verify we have at least 2 chapters
+        assert len(chapters) >= 2, f"Expected at least 2 chapters, got {len(chapters)}"
+
+        # Get the second chapter (index 1)
+        second_chapter_title, second_chapter_text = chapters[1]
+
+        # Verify the chapter has content
+        assert isinstance(second_chapter_title, str), "Chapter title should be a string"
+        assert isinstance(second_chapter_text, str), "Chapter text should be a string"
+        assert len(second_chapter_text) > 0, "Chapter text should not be empty"
+
+        print(f"Second chapter title: {second_chapter_title}")
+        print(f"Second chapter text length: {len(second_chapter_text)} characters")
+        print(f"Second chapter text preview: {second_chapter_text[:200]}...")
+
+        # Segment the second chapter text
+        segmenter = Segmenter()
+        sentences = segmenter.segment(second_chapter_text, language="es")
+
+        # Verify segmentation results
+        assert isinstance(sentences, list), "sentences should be a list"
+        assert len(sentences) > 0, "should have at least one sentence"
+
+        # Verify each sentence
+        for i, sentence in enumerate(sentences):
+            assert isinstance(sentence, str), f"sentence {i} should be a string"
+            assert len(sentence) > 0, f"sentence {i} should not be empty"
+            assert (
+                len(sentence.strip()) > 0
+            ), f"sentence {i} should not be empty after stripping"
+
+        print(f"Number of sentences extracted: {len(sentences)}")
+        print(f"First sentence: {sentences[0]}")
+        print(f"Last sentence: {sentences[-1]}")
+
+        # Verify Spanish-specific characteristics
+        spanish_indicators = ["á", "é", "í", "ó", "ú", "ñ", "¿", "¡"]
+        text_contains_spanish = any(
+            indicator in second_chapter_text for indicator in spanish_indicators
+        )
+        assert text_contains_spanish, "Text should contain Spanish characters"
+
+        # Verify that segmentation preserved Spanish content
+        sentences_text = " ".join(sentences)
+        assert (
+            len(sentences_text) > len(second_chapter_text) * 0.8
+        ), "Segmentation should preserve most of the original text"
+
+        # Verify that sentences are reasonable length (not too short, not too long)
+        for sentence in sentences:
+            # Allow for short dialogue responses and exclamations in Spanish
+            # Common short responses: "Sí.", "No.", "¡Hola!", "—Sí.", etc.
+            if len(sentence.strip()) < 3:
+                # Only allow very short sentences if they're common Spanish responses
+                short_responses = [
+                    "Sí.",
+                    "No.",
+                    "¡Hola!",
+                    "—Sí.",
+                    "—No.",
+                    "¡Ay!",
+                    "¡Oh!",
+                ]
+                assert (
+                    sentence.strip() in short_responses
+                ), f"Very short sentence not a common response: '{sentence}'"
+            else:
+                assert len(sentence) >= 3, f"Sentence too short: '{sentence}'"
+            assert len(sentence) <= 1000, f"Sentence too long: '{sentence}'"
