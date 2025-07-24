@@ -646,53 +646,158 @@ class TestSegmenter:
 
     def test_segmenter_language_detection_various_languages(self):
         """Test language detection for various languages."""
-        from unittest.mock import patch
+        from unittest.mock import MagicMock, patch
 
         from vivre.segmenter import Segmenter
 
         segmenter = Segmenter()
 
-        # Test languages with installed models
-        result = segmenter.segment("Hello world")
-        assert isinstance(result, list)
+        # Create a mock spaCy model
+        mock_model = MagicMock()
+        mock_doc = MagicMock()
+        mock_sent = MagicMock()
+        mock_sent.text = "Test sentence."
+        mock_doc.sents = [mock_sent]
+        mock_model.return_value = mock_doc
 
-        result = segmenter.segment("Hola mundo")
-        assert isinstance(result, list)
+        # Test languages with installed models - mock both language detection and model loading
+        with patch.object(segmenter, "_detect_language") as mock_detect, patch.object(
+            segmenter, "_load_model", return_value=mock_model
+        ):
 
-        result = segmenter.segment("Bonjour le monde")
-        assert isinstance(result, list)
-
-        result = segmenter.segment("Ciao mondo")
-        assert isinstance(result, list)
-
-        # Test language detection with mock for unsupported languages
-        with patch.object(segmenter, "_detect_language", return_value="en"):
-            result = segmenter.segment("Привет мир")
+            # Test English
+            mock_detect.return_value = "en"
+            result = segmenter.segment("Hello world")
             assert isinstance(result, list)
 
-            result = segmenter.segment("こんにちは世界")
+            # Test Spanish
+            mock_detect.return_value = "es"
+            result = segmenter.segment("Hola mundo")
             assert isinstance(result, list)
 
-            result = segmenter.segment("안녕하세요 세계")
+            # Test French
+            mock_detect.return_value = "fr"
+            result = segmenter.segment("Bonjour le monde")
             assert isinstance(result, list)
 
-            result = segmenter.segment("مرحبا بالعالم")
+            # Test Italian
+            mock_detect.return_value = "it"
+            result = segmenter.segment("Ciao mondo")
             assert isinstance(result, list)
 
-            result = segmenter.segment("สวัสดีชาวโลก")
-            assert isinstance(result, list)
+            # Test other languages - all should work with mocked model loading
+            test_languages = [
+                ("Привет мир", "ru"),
+                ("こんにちは世界", "ja"),
+                ("안녕하세요 세계", "ko"),
+                ("مرحبا بالعالم", "ar"),
+                ("สวัสดีชาวโลก", "th"),
+                ("नमस्ते दुनिया", "hi"),
+                ("Hallo Welt", "de"),
+                ("Olá mundo", "pt"),
+                ("Hallo wereld", "nl"),
+                ("Cześć świecie", "pl"),
+            ]
 
-            result = segmenter.segment("नमस्ते दुनिया")
-            assert isinstance(result, list)
+            for text, lang_code in test_languages:
+                mock_detect.return_value = lang_code
+                result = segmenter.segment(text)
+                assert isinstance(result, list)
 
-            result = segmenter.segment("Hallo Welt")
-            assert isinstance(result, list)
+    def test_langdetect_integration(self):
+        """Test that langdetect is properly integrated and working."""
+        from unittest.mock import patch
 
-            result = segmenter.segment("Olá mundo")
-            assert isinstance(result, list)
+        import langdetect
 
-            result = segmenter.segment("Hallo wereld")
-            assert isinstance(result, list)
+        from vivre.segmenter import Segmenter
 
-            result = segmenter.segment("Cześć świecie")
-            assert isinstance(result, list)
+        segmenter = Segmenter()
+
+        # Test that langdetect is actually being used
+        with patch("langdetect.detect") as mock_langdetect:
+            mock_langdetect.return_value = "es"
+
+            # This should call langdetect.detect
+            detected = segmenter._detect_language("Hola mundo")
+            assert detected == "es"
+            mock_langdetect.assert_called_once_with("Hola mundo")
+
+        # Test language code mapping
+        with patch("langdetect.detect") as mock_langdetect:
+            mock_langdetect.return_value = "zh-cn"
+            detected = segmenter._detect_language("你好世界")
+            assert detected == "zh"  # Should map zh-cn to zh
+
+        # Test fallback to English for unsupported languages
+        with patch("langdetect.detect") as mock_langdetect:
+            mock_langdetect.return_value = "xx"  # Unsupported language
+            detected = segmenter._detect_language("Some text")
+            assert detected == "en"  # Should fallback to English
+
+        # Test exception handling
+        with patch("langdetect.detect") as mock_langdetect:
+            mock_langdetect.side_effect = langdetect.LangDetectException(
+                "Test error", "Test error"
+            )
+            detected = segmenter._detect_language("Some text")
+            assert detected == "en"  # Should fallback to English
+
+    def test_optimized_model_loading(self):
+        """Test that model loading is optimized to avoid duplicate loads."""
+        from unittest.mock import MagicMock, patch
+
+        from vivre.segmenter import Segmenter
+
+        segmenter = Segmenter()
+
+        # Create mock models
+        mock_en_model = MagicMock()
+        mock_es_model = MagicMock()
+        mock_multilingual_model = MagicMock()
+
+        with patch("spacy.load") as mock_spacy_load:
+            # Configure spacy.load to return different models
+            def mock_load(model_name):
+                if model_name == "en_core_web_sm":
+                    return mock_en_model
+                elif model_name == "es_core_news_sm":
+                    return mock_es_model
+                elif model_name == "xx_ent_wiki_sm":
+                    return mock_multilingual_model
+                else:
+                    raise OSError(f"Model {model_name} not found")
+
+            mock_spacy_load.side_effect = mock_load
+
+            # Load English model
+            model1 = segmenter._load_model("en")
+            assert model1 == mock_en_model
+            assert len(segmenter._models) == 1
+            assert "en_core_web_sm" in segmenter._models
+
+            # Load Spanish model
+            model2 = segmenter._load_model("es")
+            assert model2 == mock_es_model
+            assert len(segmenter._models) == 2
+            assert "es_core_news_sm" in segmenter._models
+
+            # Load Arabic (uses multilingual model)
+            model3 = segmenter._load_model("ar")
+            assert model3 == mock_multilingual_model
+            assert len(segmenter._models) == 3
+            assert "xx_ent_wiki_sm" in segmenter._models
+
+            # Load Hindi (also uses multilingual model) - should reuse existing model
+            model4 = segmenter._load_model("hi")
+            assert model4 == mock_multilingual_model
+            assert len(segmenter._models) == 3  # Should not increase
+            assert "xx_ent_wiki_sm" in segmenter._models
+
+            # Load Thai (also uses multilingual model) - should reuse existing model
+            model5 = segmenter._load_model("th")
+            assert model5 == mock_multilingual_model
+            assert len(segmenter._models) == 3  # Should not increase
+
+            # Verify spacy.load was called only 3 times (not 5)
+            assert mock_spacy_load.call_count == 3
