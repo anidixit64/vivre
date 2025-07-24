@@ -33,7 +33,23 @@ bandit = "^1.7.5"
 safety = "^2.3.5"
 types-defusedxml = "^0.7"
 
+[tool.coverage.run]
+source = ["src/vivre"]
+omit = ["*/tests/*", "*/test_*"]
 
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
