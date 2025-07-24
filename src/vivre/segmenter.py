@@ -4,6 +4,7 @@ Text segmentation module for the vivre library.
 This module provides functionality to segment text into sentences or other units.
 """
 
+import re
 from typing import List
 
 
@@ -29,5 +30,18 @@ class Segmenter:
         Returns:
             List of text segments.
         """
-        # Empty implementation - will cause tests to fail
-        return []
+        if not text or not text.strip():
+            return []
+
+        # Basic sentence segmentation using regex
+        # Split on sentence endings (.!?) followed by whitespace or end of string
+        sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+
+        # Filter out empty sentences and clean up
+        segments = []
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if sentence:
+                segments.append(sentence)
+
+        return segments
