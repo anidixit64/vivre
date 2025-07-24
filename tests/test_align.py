@@ -489,3 +489,266 @@ class TestAligner:
             assert (
                 len(source_seg) > 0 or len(target_seg) > 0
             ), "At least one segment should have content"
+
+    def test_align_2_1_pattern(self):
+        """Test alignment with 2-1 pattern (two source sentences align to one target sentence)."""
+        aligner = Aligner()
+
+        # Create paragraph-sized input with 2-1 alignment pattern
+        source_text = (
+            "The morning sun rose over the distant mountains, casting long shadows across the valley floor. "
+            "Birds began their daily chorus, filling the air with melodic songs that echoed through the trees. "
+            "A gentle breeze carried the scent of pine and wildflowers, creating a peaceful atmosphere. "
+            "The village slowly came to life as people emerged from their homes to begin their daily routines. "
+            "Children's laughter could be heard from the nearby schoolyard, adding to the morning's symphony."
+        )
+
+        target_text = (
+            "El sol de la mañana se alzó sobre las montañas distantes, proyectando largas sombras a través del valle. "
+            "Los pájaros comenzaron su coro diario, llenando el aire con canciones melódicas que resonaban a través de los árboles. "
+            "Una brisa suave llevaba el aroma de pino y flores silvestres, creando una atmósfera pacífica. "
+            "El pueblo lentamente cobraba vida mientras la gente emergía de sus hogares para comenzar sus rutinas diarias. "
+            "Se podía escuchar la risa de los niños desde el patio de la escuela cercana, añadiendo a la sinfonía de la mañana."
+        )
+
+        alignment = aligner.align(source_text, target_text)
+
+        # Should have alignments
+        assert len(alignment) > 0, "Should have alignments for 2-1 pattern"
+
+        # Check for various alignment patterns
+        alignment_patterns = []
+        for source_seg, target_seg in alignment:
+            # Count sentences in source segment
+            source_sentences = len([s for s in source_seg.split(".") if s.strip()])
+            target_sentences = len([s for s in target_seg.split(".") if s.strip()])
+            alignment_patterns.append((source_sentences, target_sentences))
+
+        # Should have multiple alignment patterns
+        assert len(alignment_patterns) > 1, "Should have multiple alignment segments"
+
+        # Check that we have substantial content
+        total_source_chars = sum(len(source_seg) for source_seg, _ in alignment)
+        total_target_chars = sum(len(target_seg) for _, target_seg in alignment)
+
+        assert total_source_chars > 200, "Should have substantial source content"
+        assert total_target_chars > 200, "Should have substantial target content"
+
+    def test_align_1_2_pattern(self):
+        """Test alignment with 1-2 pattern (one source sentence aligns to two target sentences)."""
+        aligner = Aligner()
+
+        # Create paragraph-sized input with 1-2 alignment pattern
+        source_text = (
+            "The ancient castle stood majestically on the hilltop, its stone walls weathered by centuries of wind and rain. "
+            "Inside the grand hall, tapestries depicting historical battles hung from the walls, telling stories of bravery and conquest. "
+            "The library contained thousands of books, each one a treasure trove of knowledge waiting to be discovered. "
+            "The courtyard was filled with the sound of clashing swords as knights practiced their combat skills. "
+            "From the highest tower, one could see the entire kingdom spread out below like a beautiful tapestry."
+        )
+
+        target_text = (
+            "El antiguo castillo se alzaba majestuosamente en la cima de la colina. Sus muros de piedra estaban desgastados por siglos de viento y lluvia. "
+            "Dentro del gran salón, tapices que representaban batallas históricas colgaban de las paredes. Contaban historias de valentía y conquista. "
+            "La biblioteca contenía miles de libros. Cada uno era un tesoro de conocimiento esperando ser descubierto. "
+            "El patio estaba lleno del sonido de espadas chocando mientras los caballeros practicaban sus habilidades de combate. "
+            "Desde la torre más alta, se podía ver todo el reino extendido abajo como un hermoso tapiz."
+        )
+
+        alignment = aligner.align(source_text, target_text)
+
+        # Should have alignments
+        assert len(alignment) > 0, "Should have alignments for 1-2 pattern"
+
+        # Check for various alignment patterns
+        alignment_patterns = []
+        for source_seg, target_seg in alignment:
+            # Count sentences in source segment
+            source_sentences = len([s for s in source_seg.split(".") if s.strip()])
+            target_sentences = len([s for s in target_seg.split(".") if s.strip()])
+            alignment_patterns.append((source_sentences, target_sentences))
+
+        # Should have multiple alignment patterns
+        assert len(alignment_patterns) > 1, "Should have multiple alignment segments"
+
+        # Check that we have substantial content
+        total_source_chars = sum(len(source_seg) for source_seg, _ in alignment)
+        total_target_chars = sum(len(target_seg) for _, target_seg in alignment)
+
+        assert total_source_chars > 200, "Should have substantial source content"
+        assert total_target_chars > 200, "Should have substantial target content"
+
+    def test_align_1_0_pattern(self):
+        """Test alignment with 1-0 pattern (one source sentence with no target alignment)."""
+        aligner = Aligner()
+
+        # Create paragraph-sized input with 1-0 alignment pattern
+        source_text = (
+            "The scientist carefully examined the specimen under the microscope, noting every detail of its structure. "
+            "This discovery could revolutionize our understanding of cellular biology and lead to breakthrough treatments. "
+            "The research team worked tirelessly for months, conducting countless experiments and analyzing mountains of data. "
+            "Their findings were published in a prestigious journal, earning recognition from the scientific community. "
+            "This paragraph contains additional information that may not have a direct translation in the target language."
+        )
+
+        target_text = (
+            "El científico examinó cuidadosamente la muestra bajo el microscopio, anotando cada detalle de su estructura. "
+            "Este descubrimiento podría revolucionar nuestra comprensión de la biología celular y llevar a tratamientos innovadores. "
+            "El equipo de investigación trabajó incansablemente durante meses, realizando innumerables experimentos y analizando montañas de datos. "
+            "Sus hallazgos fueron publicados en una revista prestigiosa, ganando reconocimiento de la comunidad científica."
+        )
+
+        alignment = aligner.align(source_text, target_text)
+
+        # Should have alignments
+        assert len(alignment) > 0, "Should have alignments for 1-0 pattern"
+
+        # Check for various alignment patterns
+        alignment_patterns = []
+        for source_seg, target_seg in alignment:
+            # Count sentences in source segment
+            source_sentences = len([s for s in source_seg.split(".") if s.strip()])
+            target_sentences = len([s for s in target_seg.split(".") if s.strip()])
+            alignment_patterns.append((source_sentences, target_sentences))
+
+        # Should have multiple alignment patterns
+        assert len(alignment_patterns) > 1, "Should have multiple alignment segments"
+
+        # Check that we have substantial content
+        total_source_chars = sum(len(source_seg) for source_seg, _ in alignment)
+        total_target_chars = sum(len(target_seg) for _, target_seg in alignment)
+
+        assert total_source_chars > 200, "Should have substantial source content"
+        assert total_target_chars > 200, "Should have substantial target content"
+
+    def test_align_0_1_pattern(self):
+        """Test alignment with 0-1 pattern (no source sentence with one target sentence)."""
+        aligner = Aligner()
+
+        # Create paragraph-sized input with 0-1 alignment pattern
+        source_text = (
+            "The artist carefully mixed colors on her palette, creating the perfect shade for the sunset sky. "
+            "Her brush moved across the canvas with practiced precision, bringing the landscape to life. "
+            "The painting captured the essence of the moment, preserving it for future generations to admire. "
+            "Her studio was filled with completed works, each one telling its own unique story."
+        )
+
+        target_text = (
+            "La artista mezcló cuidadosamente los colores en su paleta, creando el tono perfecto para el cielo del atardecer. "
+            "Su pincel se movía por el lienzo con precisión practicada, dando vida al paisaje. "
+            "La pintura capturó la esencia del momento, preservándola para que las futuras generaciones la admiren. "
+            "Su estudio estaba lleno de obras completadas, cada una contando su propia historia única. "
+            "Esta oración adicional en español no tiene una traducción directa en el texto fuente en inglés."
+        )
+
+        alignment = aligner.align(source_text, target_text)
+
+        # Should have alignments
+        assert len(alignment) > 0, "Should have alignments for 0-1 pattern"
+
+        # Check for various alignment patterns
+        alignment_patterns = []
+        for source_seg, target_seg in alignment:
+            # Count sentences in source segment
+            source_sentences = len([s for s in source_seg.split(".") if s.strip()])
+            target_sentences = len([s for s in target_seg.split(".") if s.strip()])
+            alignment_patterns.append((source_sentences, target_sentences))
+
+        # Should have multiple alignment patterns
+        assert len(alignment_patterns) > 1, "Should have multiple alignment segments"
+
+        # Check that we have substantial content
+        total_source_chars = sum(len(source_seg) for source_seg, _ in alignment)
+        total_target_chars = sum(len(target_seg) for _, target_seg in alignment)
+
+        assert total_source_chars > 200, "Should have substantial source content"
+        assert total_target_chars > 200, "Should have substantial target content"
+
+    def test_align_mixed_patterns(self):
+        """Test alignment with mixed patterns (2-1, 1-2, 1-0, 0-1) in a complex paragraph."""
+        aligner = Aligner()
+
+        # Create complex paragraph with mixed alignment patterns
+        source_text = (
+            "The expedition team prepared for their journey into the uncharted wilderness, packing essential supplies and equipment. "
+            "They knew the terrain would be challenging, with steep mountains and dense forests blocking their path. "
+            "The weather forecast predicted storms, but they were determined to reach their destination. "
+            "This sentence has no direct translation in the target text. "
+            "The team leader reviewed the map one final time, ensuring everyone understood the route. "
+            "They set out at dawn, their spirits high despite the challenges ahead."
+        )
+
+        target_text = (
+            "El equipo de expedición se preparó para su viaje hacia la naturaleza virgen. Empacaron suministros esenciales y equipo. "
+            "Sabían que el terreno sería desafiante. Las montañas empinadas y bosques densos bloqueaban su camino. "
+            "El pronóstico del tiempo predijo tormentas. Pero estaban determinados a llegar a su destino. "
+            "El líder del equipo revisó el mapa una vez final. Se aseguró de que todos entendieran la ruta. "
+            "Partieron al amanecer. Sus espíritus estaban altos a pesar de los desafíos por delante."
+        )
+
+        alignment = aligner.align(source_text, target_text)
+
+        # Should have alignments
+        assert len(alignment) > 0, "Should have alignments for mixed patterns"
+
+        # Analyze alignment patterns
+        alignment_patterns = []
+        for source_seg, target_seg in alignment:
+            source_sentences = len([s for s in source_seg.split(".") if s.strip()])
+            target_sentences = len([s for s in target_seg.split(".") if s.strip()])
+            alignment_patterns.append((source_sentences, target_sentences))
+
+        # Should have various alignment patterns
+        assert len(alignment_patterns) > 1, "Should have multiple alignment patterns"
+
+        # Check that we have a mix of different patterns
+        unique_patterns = set(alignment_patterns)
+        assert len(unique_patterns) > 1, "Should have different alignment patterns"
+
+    def test_align_large_paragraphs(self):
+        """Test alignment with large paragraph-sized inputs to verify algorithm scalability."""
+        aligner = Aligner()
+
+        # Create large paragraph-sized inputs
+        source_text = (
+            "The technological revolution of the twenty-first century has fundamentally transformed the way we live, work, and communicate. "
+            "Artificial intelligence and machine learning algorithms now power everything from our smartphones to our transportation systems. "
+            "The internet has created a global village where information flows freely across borders and cultures. "
+            "Social media platforms have redefined human interaction, enabling instant communication with people around the world. "
+            "Cloud computing has revolutionized data storage and processing, making powerful computing resources accessible to everyone. "
+            "The rise of renewable energy technologies has begun to address the urgent challenge of climate change. "
+            "Electric vehicles are becoming increasingly common, reducing our dependence on fossil fuels. "
+            "Advances in medical technology have led to breakthroughs in disease treatment and prevention. "
+            "The development of quantum computing promises to solve problems that were previously impossible to tackle. "
+            "These innovations continue to accelerate, creating both opportunities and challenges for society."
+        )
+
+        target_text = (
+            "La revolución tecnológica del siglo veintiuno ha transformado fundamentalmente la forma en que vivimos, trabajamos y nos comunicamos. "
+            "Los algoritmos de inteligencia artificial y aprendizaje automático ahora impulsan todo, desde nuestros teléfonos inteligentes hasta nuestros sistemas de transporte. "
+            "Internet ha creado una aldea global donde la información fluye libremente a través de fronteras y culturas. "
+            "Las plataformas de redes sociales han redefinido la interacción humana, permitiendo la comunicación instantánea con personas de todo el mundo. "
+            "La computación en la nube ha revolucionado el almacenamiento y procesamiento de datos, haciendo que los recursos informáticos potentes sean accesibles para todos. "
+            "El surgimiento de las tecnologías de energía renovable ha comenzado a abordar el urgente desafío del cambio climático. "
+            "Los vehículos eléctricos se están volviendo cada vez más comunes, reduciendo nuestra dependencia de los combustibles fósiles. "
+            "Los avances en tecnología médica han llevado a avances en el tratamiento y prevención de enfermedades. "
+            "El desarrollo de la computación cuántica promete resolver problemas que anteriormente eran imposibles de abordar. "
+            "Estas innovaciones continúan acelerándose, creando tanto oportunidades como desafíos para la sociedad."
+        )
+
+        alignment = aligner.align(source_text, target_text)
+
+        # Should have alignments
+        assert len(alignment) > 0, "Should have alignments for large paragraphs"
+
+        # Should have reasonable number of alignments (not too many, not too few)
+        assert (
+            5 <= len(alignment) <= 15
+        ), f"Should have reasonable number of alignments, got {len(alignment)}"
+
+        # Each alignment should have substantial content
+        total_source_chars = sum(len(source_seg) for source_seg, _ in alignment)
+        total_target_chars = sum(len(target_seg) for _, target_seg in alignment)
+
+        assert total_source_chars > 500, "Should have substantial source content"
+        assert total_target_chars > 500, "Should have substantial target content"
