@@ -475,28 +475,28 @@ class TestParser:
             os.unlink(tmp_file.name)
 
     def test_is_title_or_cover_page_method(self):
-        """Test the _is_title_or_cover_page method."""
+        """Test the _is_non_story_content method."""
         from vivre.parser import Parser
 
         parser = Parser()
 
         # Test title-based filtering
-        assert parser._is_title_or_cover_page("Cover", "chapter1.xhtml") is True
-        assert parser._is_title_or_cover_page("Title Page", "chapter1.xhtml") is True
-        assert parser._is_title_or_cover_page("Front Cover", "chapter1.xhtml") is True
-        assert parser._is_title_or_cover_page("Back Cover", "chapter1.xhtml") is True
-        assert parser._is_title_or_cover_page("TitlePage", "chapter1.xhtml") is True
+        assert parser._is_non_story_content("Cover", "chapter1.xhtml") is True
+        assert parser._is_non_story_content("Title Page", "chapter1.xhtml") is True
+        assert parser._is_non_story_content("Front Cover", "chapter1.xhtml") is True
+        assert parser._is_non_story_content("Back Cover", "chapter1.xhtml") is True
+        assert parser._is_non_story_content("TitlePage", "chapter1.xhtml") is True
 
         # Test href-based filtering
-        assert parser._is_title_or_cover_page("Chapter 1", "cover.xhtml") is True
-        assert parser._is_title_or_cover_page("Chapter 1", "titlepage.xhtml") is True
-        assert parser._is_title_or_cover_page("Chapter 1", "front.xhtml") is True
-        assert parser._is_title_or_cover_page("Chapter 1", "back.xhtml") is True
+        assert parser._is_non_story_content("Chapter 1", "cover.xhtml") is True
+        assert parser._is_non_story_content("Chapter 1", "titlepage.xhtml") is True
+        assert parser._is_non_story_content("Chapter 1", "front.xhtml") is True
+        assert parser._is_non_story_content("Chapter 1", "back.xhtml") is True
 
         # Test normal chapters (should not be filtered)
-        assert parser._is_title_or_cover_page("Chapter 1", "chapter1.xhtml") is False
-        assert parser._is_title_or_cover_page("The Beginning", "part1.xhtml") is False
-        assert parser._is_title_or_cover_page("Percy Jackson", "part2.xhtml") is False
+        assert parser._is_non_story_content("Chapter 1", "chapter1.xhtml") is False
+        assert parser._is_non_story_content("The Beginning", "part1.xhtml") is False
+        assert parser._is_non_story_content("Percy Jackson", "part2.xhtml") is False
 
     def test_parse_spanish_epub(self):
         """Test parsing the Spanish EPUB file to extract chapters."""
@@ -962,7 +962,7 @@ class TestParser:
 
         for title in non_story_titles:
             assert (
-                parser._is_title_or_cover_page(title, "test.xhtml") is True
+                parser._is_non_story_content(title, "test.xhtml") is True
             ), f"Should filter out: {title}"
 
         # Test story content titles that should NOT be filtered out
@@ -982,7 +982,7 @@ class TestParser:
 
         for title in story_titles:
             assert (
-                parser._is_title_or_cover_page(title, "chapter1.xhtml") is False
+                parser._is_non_story_content(title, "chapter1.xhtml") is False
             ), f"Should NOT filter out: {title}"
 
     def test_epub_content_filtering_integration(self):
