@@ -475,28 +475,28 @@ class TestParser:
             os.unlink(tmp_file.name)
 
     def test_is_title_or_cover_page_method(self):
-        """Test the _is_title_or_cover_page method."""
+        """Test the _is_non_story_content method."""
         from vivre.parser import Parser
 
         parser = Parser()
 
         # Test title-based filtering
-        assert parser._is_title_or_cover_page("Cover", "chapter1.xhtml") is True
-        assert parser._is_title_or_cover_page("Title Page", "chapter1.xhtml") is True
-        assert parser._is_title_or_cover_page("Front Cover", "chapter1.xhtml") is True
-        assert parser._is_title_or_cover_page("Back Cover", "chapter1.xhtml") is True
-        assert parser._is_title_or_cover_page("TitlePage", "chapter1.xhtml") is True
+        assert parser._is_non_story_content("Cover", "chapter1.xhtml") is True
+        assert parser._is_non_story_content("Title Page", "chapter1.xhtml") is True
+        assert parser._is_non_story_content("Front Cover", "chapter1.xhtml") is True
+        assert parser._is_non_story_content("Back Cover", "chapter1.xhtml") is True
+        assert parser._is_non_story_content("TitlePage", "chapter1.xhtml") is True
 
         # Test href-based filtering
-        assert parser._is_title_or_cover_page("Chapter 1", "cover.xhtml") is True
-        assert parser._is_title_or_cover_page("Chapter 1", "titlepage.xhtml") is True
-        assert parser._is_title_or_cover_page("Chapter 1", "front.xhtml") is True
-        assert parser._is_title_or_cover_page("Chapter 1", "back.xhtml") is True
+        assert parser._is_non_story_content("Chapter 1", "cover.xhtml") is True
+        assert parser._is_non_story_content("Chapter 1", "titlepage.xhtml") is True
+        assert parser._is_non_story_content("Chapter 1", "front.xhtml") is True
+        assert parser._is_non_story_content("Chapter 1", "back.xhtml") is True
 
         # Test normal chapters (should not be filtered)
-        assert parser._is_title_or_cover_page("Chapter 1", "chapter1.xhtml") is False
-        assert parser._is_title_or_cover_page("The Beginning", "part1.xhtml") is False
-        assert parser._is_title_or_cover_page("Percy Jackson", "part2.xhtml") is False
+        assert parser._is_non_story_content("Chapter 1", "chapter1.xhtml") is False
+        assert parser._is_non_story_content("The Beginning", "part1.xhtml") is False
+        assert parser._is_non_story_content("Percy Jackson", "part2.xhtml") is False
 
     def test_parse_spanish_epub(self):
         """Test parsing the Spanish EPUB file to extract chapters."""
@@ -833,3 +833,193 @@ class TestParser:
                 ValueError, match="File path must be a string or Path object"
             ):
                 parser.parse_epub(invalid_path)
+
+    def test_parse_percy_jackson_english(self):
+        """Test parsing the English Percy Jackson EPUB file."""
+        from vivre.parser import Parser
+
+        # Get path to English test EPUB file
+        test_file_path = (
+            Path(__file__).parent
+            / "data"
+            / "Percy Jackson 1 - The Lightning Thief - Riordan, Rick.epub"
+        )
+
+        # Verify test file exists
+        assert test_file_path.exists(), f"Test file not found: {test_file_path}"
+        assert test_file_path.is_file(), f"Path is not a file: {test_file_path}"
+
+        # Initialize parser and parse EPUB
+        parser = Parser()
+        chapters = parser.parse_epub(test_file_path)
+
+        # Verify the structure and content
+        assert isinstance(chapters, list), "chapters should be a list"
+        assert len(chapters) > 0, "should extract at least one chapter"
+
+        # Check chapter titles and content
+        for i, (title, text) in enumerate(chapters):
+            assert isinstance(title, str), f"chapter {i} title should be a string"
+            assert isinstance(text, str), f"chapter {i} text should be a string"
+            assert len(title) > 0, f"chapter {i} title should not be empty"
+            assert len(text) > 0, f"chapter {i} text should not be empty"
+
+            # Verify the text contains story content (not just metadata)
+            assert len(text) > 100, f"chapter {i} should have substantial text content"
+
+            print(f"Chapter {i+1}: {title}")
+            print(f"Text length: {len(text)} characters")
+            print(f"Text preview: {text[:100]}...")
+
+    def test_parse_percy_jackson_spanish(self):
+        """Test parsing the Spanish Percy Jackson EPUB file."""
+        from vivre.parser import Parser
+
+        # Get path to Spanish test EPUB file
+        test_file_path = (
+            Path(__file__).parent / "data" / "El ladrón del rayo - Rick Riordan.epub"
+        )
+
+        # Verify test file exists
+        assert test_file_path.exists(), f"Test file not found: {test_file_path}"
+        assert test_file_path.is_file(), f"Path is not a file: {test_file_path}"
+
+        # Initialize parser and parse EPUB
+        parser = Parser()
+        chapters = parser.parse_epub(test_file_path)
+
+        # Verify the structure and content
+        assert isinstance(chapters, list), "chapters should be a list"
+        assert len(chapters) > 0, "should extract at least one chapter"
+
+        # Check chapter titles and content
+        for i, (title, text) in enumerate(chapters):
+            assert isinstance(title, str), f"chapter {i} title should be a string"
+            assert isinstance(text, str), f"chapter {i} text should be a string"
+            assert len(title) > 0, f"chapter {i} title should not be empty"
+            assert len(text) > 0, f"chapter {i} text should not be empty"
+
+            # Verify the text contains story content (not just metadata)
+            assert len(text) > 100, f"chapter {i} should have substantial text content"
+
+            print(f"Chapter {i+1}: {title}")
+            print(f"Text length: {len(text)} characters")
+            print(f"Text preview: {text[:100]}...")
+
+    def test_filter_non_story_content(self):
+        """Test that the parser correctly filters out non-story content."""
+        from vivre.parser import Parser
+
+        parser = Parser()
+
+        # Test various non-story content titles that should be filtered out
+        non_story_titles = [
+            "Cover",
+            "Title Page",
+            "Front Cover",
+            "Back Cover",
+            "Acknowledgements",
+            "Acknowledgments",
+            "Table of Contents",
+            "Contents",
+            "Copyright",
+            "Legal Notice",
+            "About the Author",
+            "Author Biography",
+            "Translator's Note",
+            "Preface",
+            "Foreword",
+            "Introduction",
+            "Prologue",
+            "Epilogue",
+            "Afterword",
+            "Appendix",
+            "Index",
+            "Bibliography",
+            "References",
+            "Glossary",
+            "Credits",
+            "Dedication",
+        ]
+
+        for title in non_story_titles:
+            assert (
+                parser._is_non_story_content(title, "test.xhtml") is True
+            ), f"Should filter out: {title}"
+
+        # Test story content titles that should NOT be filtered out
+        story_titles = [
+            "Chapter 1",
+            "Chapter 1 - A Secret Code",
+            "1. Código secreto",
+            "The Beginning",
+            "A New Adventure",
+            "The Mystery Deepens",
+            "The Final Battle",
+            "Percy Jackson",
+            "The Lightning Thief",
+            "Part One",
+            "Section 1",
+        ]
+
+        for title in story_titles:
+            assert (
+                parser._is_non_story_content(title, "chapter1.xhtml") is False
+            ), f"Should NOT filter out: {title}"
+
+    def test_epub_content_filtering_integration(self):
+        """Test that EPUB parsing correctly filters non-story content in real files."""
+        from vivre.parser import Parser
+
+        # Test with both Percy Jackson files
+        test_files = [
+            ("Percy Jackson 1 - The Lightning Thief - Riordan, Rick.epub", 1),
+            ("El ladrón del rayo - Rick Riordan.epub", 1),
+        ]
+
+        for filename, expected_chapters in test_files:
+            test_file_path = Path(__file__).parent / "data" / filename
+
+            # Verify test file exists
+            assert test_file_path.exists(), f"Test file not found: {test_file_path}"
+
+            # Initialize parser and parse EPUB
+            parser = Parser()
+            chapters = parser.parse_epub(test_file_path)
+
+            # Verify we get at least one chapter
+            assert (
+                len(chapters) >= expected_chapters
+            ), f"Expected at least {expected_chapters} chapter for {filename}, got {len(chapters)}"
+
+            # Verify all chapters have substantial content
+            for i, (title, text) in enumerate(chapters):
+                assert (
+                    len(title) > 0
+                ), f"Chapter {i} title should not be empty in {filename}"
+                assert (
+                    len(text) > 100
+                ), f"Chapter {i} should have substantial text in {filename}"
+
+                # Verify the title doesn't contain non-story keywords
+                title_lower = title.lower()
+                non_story_keywords = [
+                    "cover",
+                    "title",
+                    "acknowledgement",
+                    "contents",
+                    "copyright",
+                    "about the author",
+                    "translator",
+                    "preface",
+                    "epilogue",
+                ]
+
+                for keyword in non_story_keywords:
+                    assert (
+                        keyword not in title_lower
+                    ), f"Chapter title '{title}' should not contain '{keyword}' in {filename}"
+
+            print(
+                f"✓ {filename}: Extracted {len(chapters)} story chapters successfully"
+            )
