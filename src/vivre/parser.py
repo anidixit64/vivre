@@ -371,6 +371,21 @@ class VivreParser:
             # Extract all text content
             text = self._extract_text(root)
 
+            # If we got "Untitled Chapter" but text starts with what looks like a title,
+            # try to extract the title from the beginning of the text
+            if title == "Untitled Chapter" and text.strip():
+                # Look for patterns like "1. Title" or "2. Title" at the beginning
+                # Stop at the first sentence boundary or when we hit the actual content
+                title_match = re.match(
+                    r"^(\d+\.?\s+[^.!?]+?)(?=\s+[A-Z]|$)", text.strip()
+                )
+                if title_match:
+                    title = title_match.group(1).strip()
+
+            # Explicitly remove the title from the text if it appears at the beginning
+            if title and title != "Untitled Chapter":
+                text = self._remove_title_from_text(text, title)
+
             return title, text
 
         except ET.ParseError:
@@ -378,6 +393,11 @@ class VivreParser:
             content_str = chapter_content.decode("utf-8", errors="ignore")
             title = self._extract_title_fallback(content_str)
             text = self._extract_text_fallback(content_str)
+
+            # Explicitly remove the title from the text if it appears at the beginning
+            if title and title != "Untitled Chapter":
+                text = self._remove_title_from_text(text, title)
+
             return title, text
 
     def _extract_title(self, root: Any) -> str:
@@ -770,6 +790,50 @@ class VivreParser:
             return True
 
         return False
+
+    def _remove_title_from_text(self, text: str, title: str) -> str:
+        """
+        Remove the title from the beginning of the text.
+
+        Args:
+            text: The text content.
+            title: The title to remove.
+
+        Returns:
+            Text with title removed from the beginning.
+        """
+        if not title or title == "Untitled Chapter":
+            return text
+
+        # Try exact match first
+        title_escaped = re.escape(title)
+        text = re.sub(f"^{title_escaped}\\s*", "", text, flags=re.IGNORECASE)
+
+        # Try variations of the title
+        title_variations = [
+            title.replace(".", ""),  # Remove periods
+            title.replace("  ", " "),  # Normalize double spaces
+            title.strip(),
+            re.sub(r"\s+", " ", title),  # Normalize all whitespace
+        ]
+
+        for variation in title_variations:
+            if variation and variation != title:
+                variation_escaped = re.escape(variation)
+                text = re.sub(
+                    f"^{variation_escaped}\\s*", "", text, flags=re.IGNORECASE
+                )
+
+        # Try removing just the first few words if they match the title
+        title_words = title.split()
+        if len(title_words) >= 2:
+            # Try removing first 2-3 words if they match the title
+            for i in range(2, min(4, len(title_words) + 1)):
+                partial_title = " ".join(title_words[:i])
+                partial_escaped = re.escape(partial_title)
+                text = re.sub(f"^{partial_escaped}\\s*", "", text, flags=re.IGNORECASE)
+
+        return text.strip()
 
 
 # Backward compatibility alias
