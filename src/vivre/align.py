@@ -8,16 +8,54 @@ from typing import List, Tuple
 
 class Aligner:
     """
-    A class for aligning source and target texts.
+    A class for aligning source and target texts using the Gale-Church algorithm.
 
     This class provides functionality to align segments of text between
     source and target languages, creating parallel corpora for translation
     and analysis purposes.
     """
 
-    def __init__(self):
-        """Initialize the Aligner."""
-        pass
+    def __init__(self, language_pair: str = "en-es"):
+        """
+        Initialize the Aligner with language-specific parameters.
+
+        Args:
+            language_pair: Language pair code (e.g., "en-es", "en-fr", "en-de").
+                          Defaults to "en-es" (English-Spanish).
+        """
+        # Language-specific parameters for the Gale-Church algorithm
+        self.language_params = {
+            "en-es": {
+                "mean_ratio": 1.0,  # Mean length ratio (target/source)
+                "variance": 0.3,  # Variance of the length ratio
+                "gap_penalty": 3.0,  # Gap penalty (in standard deviations)
+            },
+            "en-fr": {
+                "mean_ratio": 1.1,
+                "variance": 0.35,
+                "gap_penalty": 3.0,
+            },
+            "en-de": {
+                "mean_ratio": 1.2,
+                "variance": 0.4,
+                "gap_penalty": 3.0,
+            },
+            "en-it": {
+                "mean_ratio": 1.05,
+                "variance": 0.32,
+                "gap_penalty": 3.0,
+            },
+        }
+
+        # Use default parameters if language pair not found
+        self.params = self.language_params.get(
+            language_pair, self.language_params["en-es"]
+        )
+
+        # Extract parameters for easier access
+        self.mean_ratio = self.params["mean_ratio"]
+        self.variance = self.params["variance"]
+        self.gap_penalty = self.params["gap_penalty"]
 
     def align(
         self, source_sentences: List[str], target_sentences: List[str]
@@ -132,39 +170,33 @@ class Aligner:
                 # Try different alignment types
                 candidates = []
 
-                # 1-1 alignment (preferred)
+                # 1-1 alignment
                 if i > 0 and j > 0:
                     cost = self._alignment_cost(
                         source_lengths[i - 1], target_lengths[j - 1]
                     )
-                    # Add bias towards 1-1 alignment
-                    cost -= 2.0  # Prefer 1-1 alignments
                     candidates.append((dp[i - 1][j - 1] + cost, (i - 1, j - 1, 1, 1)))
 
                 # 1-0 alignment (source sentence with no target)
                 if i > 0:
-                    cost = self._alignment_cost(source_lengths[i - 1], 0)
+                    cost = self._gap_penalty_cost()
                     candidates.append((dp[i - 1][j] + cost, (i - 1, j, 1, 0)))
 
                 # 0-1 alignment (target sentence with no source)
                 if j > 0:
-                    cost = self._alignment_cost(0, target_lengths[j - 1])
+                    cost = self._gap_penalty_cost()
                     candidates.append((dp[i][j - 1] + cost, (i, j - 1, 0, 1)))
 
                 # 2-1 alignment (two source sentences with one target)
                 if i > 1 and j > 0:
                     src_len = source_lengths[i - 2] + source_lengths[i - 1]
                     cost = self._alignment_cost(src_len, target_lengths[j - 1])
-                    # Add penalty for non-1-1 alignments
-                    cost += 5.0
                     candidates.append((dp[i - 2][j - 1] + cost, (i - 2, j - 1, 2, 1)))
 
                 # 1-2 alignment (one source sentence with two target)
                 if i > 0 and j > 1:
                     tgt_len = target_lengths[j - 2] + target_lengths[j - 1]
                     cost = self._alignment_cost(source_lengths[i - 1], tgt_len)
-                    # Add penalty for non-1-1 alignments
-                    cost += 5.0
                     candidates.append((dp[i - 1][j - 2] + cost, (i - 1, j - 2, 1, 2)))
 
                 # 2-2 alignment (two source sentences with two target)
@@ -172,8 +204,6 @@ class Aligner:
                     src_len = source_lengths[i - 2] + source_lengths[i - 1]
                     tgt_len = target_lengths[j - 2] + target_lengths[j - 1]
                     cost = self._alignment_cost(src_len, tgt_len)
-                    # Add penalty for non-1-1 alignments
-                    cost += 5.0
                     candidates.append((dp[i - 2][j - 2] + cost, (i - 2, j - 2, 2, 2)))
 
                 # Choose best candidate
@@ -182,30 +212,24 @@ class Aligner:
                     dp[i][j] = best_cost
                     backtrack[i][j] = best_move
 
-        # Reconstruct alignment
+        # Reconstruct alignment path
         return self._reconstruct_alignment(backtrack, m, n)
 
     def _alignment_cost(self, src_len: int, tgt_len: int) -> float:
         """
-        Calculate alignment cost using Gale-Church statistical model.
+        Calculate alignment cost using statistically sound Gale-Church model.
 
         Args:
             src_len: Source sentence length.
             tgt_len: Target sentence length.
 
         Returns:
-            Alignment cost.
+            Alignment cost (negative log probability).
         """
         if src_len == 0 and tgt_len == 0:
             return 0.0
 
-        # Parameters for the statistical model
-        # These can be tuned based on language pair
-        c = 1.0  # Length ratio parameter
-        p0 = 0.6  # Probability of 1-1 alignment (increased)
-        p1 = 0.2  # Probability of 1-0 or 0-1 alignment (decreased)
-
-        # Calculate length ratio
+        # Calculate the length ratio
         if src_len == 0:
             ratio = float("inf")
         elif tgt_len == 0:
@@ -213,30 +237,78 @@ class Aligner:
         else:
             ratio = tgt_len / src_len
 
-        # Calculate log probability
+        # Calculate delta (number of standard deviations from mean)
         if ratio == 0.0 or ratio == float("inf"):
-            log_prob = -100.0  # Very low probability
+            delta = float("inf")
         else:
-            # Normal distribution approximation with tighter variance
-            log_prob = -0.5 * ((ratio - c) / 0.3) ** 2
+            delta = abs(ratio - self.mean_ratio) / self.variance
 
-        # Add alignment type penalty
-        if src_len == 0 or tgt_len == 0:
-            log_prob += math.log(p1)
-        elif src_len > 0 and tgt_len > 0:
-            log_prob += math.log(p0)
+        # Convert delta to probability using normal distribution CDF
+        # For large delta, use approximation to avoid numerical issues
+        if delta > 10:
+            # Very unlikely match
+            probability = 1e-10
+        else:
+            # Use normal distribution CDF approximation
+            probability = self._normal_cdf(delta)
 
-        # Add penalty for very large alignments to encourage sentence-level alignment
-        if src_len > 50 or tgt_len > 50:
-            log_prob -= 10.0  # Heavy penalty for large alignments
+        # Convert probability to cost (negative log probability)
+        cost = -math.log(probability) if probability > 0 else 100.0
 
-        return -log_prob  # Return negative log probability as cost
+        return cost
+
+    def _normal_cdf(self, delta: float) -> float:
+        """
+        Calculate the cumulative distribution function of the normal distribution.
+
+        Args:
+            delta: Number of standard deviations from mean.
+
+        Returns:
+            Probability of observing a deviation as large or larger than delta.
+        """
+        # Use approximation for normal CDF
+        # This is the complementary error function approximation
+        if delta < 0:
+            return 1.0
+
+        # For delta >= 0, P(X >= delta) = 1 - P(X < delta)
+        # Using approximation: P(X < delta) ≈ 1 - 0.5 * erfc(delta/sqrt(2))
+        # where erfc is the complementary error function
+
+        # Simple approximation for erfc
+        if delta > 8:
+            return 1e-10  # Very small probability
+
+        # Use polynomial approximation for erfc
+        t = 1.0 / (1.0 + 0.5 * delta)
+        erfc = (
+            t
+            * math.exp(-delta * delta / 2.0)
+            * (1.0 - 0.5 * delta * delta * t * t * (1.0 - 0.5 * delta * delta * t * t))
+        )
+
+        return 0.5 * erfc
+
+    def _gap_penalty_cost(self) -> float:
+        """
+        Calculate the cost for gap alignments (1-0 or 0-1).
+
+        Returns:
+            Gap penalty cost.
+        """
+        # Convert gap penalty (in standard deviations) to probability
+        # A gap penalty of 3.0 means the cost is equivalent to a 3-sigma deviation
+        probability = self._normal_cdf(self.gap_penalty)
+
+        # Convert to cost
+        return -math.log(probability) if probability > 0 else 100.0
 
     def _reconstruct_alignment(
         self, backtrack: List[List], m: int, n: int
     ) -> List[Tuple[int, int, int, int]]:
         """
-        Reconstruct alignment from backtracking table.
+        Reconstruct the alignment path from the backtracking table.
 
         Args:
             backtrack: Backtracking table.
@@ -255,11 +327,12 @@ class Aligner:
 
             prev_i, prev_j, src_count, tgt_count = backtrack[i][j]
 
-            # Add alignment
+            # Add alignment segment
             alignment.append((prev_i, i, prev_j, j))
 
             # Move to previous position
             i, j = prev_i, prev_j
 
         # Reverse to get correct order
-        return list(reversed(alignment))
+        alignment.reverse()
+        return alignment
