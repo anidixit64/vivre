@@ -157,6 +157,23 @@ class TestSegmenter:
         assert isinstance(segments, list), "segments should be a list"
         assert len(segments) == 3, "should have three segments"
 
+    def test_segment_italian_text(self):
+        """Test segmentation of Italian text."""
+        from vivre.segmenter import Segmenter
+
+        segmenter = Segmenter()
+        text = "Ciao mondo. Come stai? Che bello!"
+
+        segments = segmenter.segment(text, language="it")
+
+        assert isinstance(segments, list), "segments should be a list"
+        assert len(segments) == 3, "should have three segments"
+        assert (
+            "Ciao mondo." in segments[0]
+        ), "first segment should contain 'Ciao mondo.'"
+        assert "Come stai?" in segments[1], "second segment should contain 'Come stai?'"
+        assert "Che bello!" in segments[2], "third segment should contain 'Che bello!'"
+
     def test_language_detection_english(self):
         """Test automatic language detection for English."""
         from vivre.segmenter import Segmenter
@@ -203,6 +220,23 @@ class TestSegmenter:
 
         assert isinstance(segments, list), "segments should be a list"
         assert len(segments) == 3, "should have three segments"
+
+    def test_language_detection_italian(self):
+        """Test automatic language detection for Italian."""
+        from vivre.segmenter import Segmenter
+
+        segmenter = Segmenter()
+        text = "Ciao mondo. Come stai? Che bello!"
+
+        segments = segmenter.segment(text)  # No language parameter
+
+        assert isinstance(segments, list), "segments should be a list"
+        assert len(segments) == 3, "should have three segments"
+        assert (
+            "Ciao mondo." in segments[0]
+        ), "first segment should contain 'Ciao mondo.'"
+        assert "Come stai?" in segments[1], "second segment should contain 'Come stai?'"
+        assert "Che bello!" in segments[2], "third segment should contain 'Che bello!'"
 
     def test_unsupported_language_error(self):
         """Test error handling for unsupported language."""
