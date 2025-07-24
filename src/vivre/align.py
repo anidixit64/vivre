@@ -3,7 +3,6 @@ Text alignment functionality for matching source and target texts.
 """
 
 import math
-import re
 from typing import List, Tuple
 
 
@@ -20,70 +19,68 @@ class Aligner:
         """Initialize the Aligner."""
         pass
 
-    def align(self, source_text: str, target_text: str) -> List[Tuple[str, str]]:
+    def align(
+        self, source_sentences: List[str], target_sentences: List[str]
+    ) -> List[Tuple[str, str]]:
         """
-        Align source and target texts into parallel segments.
+        Align source and target sentences into parallel segments.
 
         Args:
-            source_text: The source language text.
-            target_text: The target language text.
+            source_sentences: List of source language sentences (pre-tokenized).
+            target_sentences: List of target language sentences (pre-tokenized).
 
         Returns:
             A list of tuples containing aligned (source_segment, target_segment) pairs.
         """
-        # Handle empty or whitespace-only texts
-        if not source_text or not source_text.strip():
-            return []
-        if not target_text or not target_text.strip():
+        # Handle empty sentence lists
+        if not source_sentences or not target_sentences:
             return []
 
-        # For perfectly matched texts, split into sentences and align 1-1
-        if source_text == target_text:
-            return self._align_perfect_match(source_text)
+        # Filter out empty sentences
+        source_sentences = [s.strip() for s in source_sentences if s.strip()]
+        target_sentences = [s.strip() for s in target_sentences if s.strip()]
 
-        # Use Gale-Church algorithm for different texts
-        return self._align_gale_church(source_text, target_text)
+        if not source_sentences or not target_sentences:
+            return []
 
-    def _align_perfect_match(self, text: str) -> List[Tuple[str, str]]:
+        # For perfectly matched sentences, align 1-1
+        if source_sentences == target_sentences:
+            return self._align_perfect_match(source_sentences)
+
+        # Use Gale-Church algorithm for different sentences
+        return self._align_gale_church(source_sentences, target_sentences)
+
+    def _align_perfect_match(self, sentences: List[str]) -> List[Tuple[str, str]]:
         """
-        Align perfectly matched text by splitting into sentences.
+        Align perfectly matched sentences 1-1.
 
         Args:
-            text: The text to split and align.
+            sentences: List of sentences to align.
 
         Returns:
             List of (sentence, sentence) tuples for perfect alignment.
         """
-        # Split text into sentences using regex
-        # This handles various sentence endings: . ! ?
-        sentences = re.split(r"(?<=[.!?])\s+", text.strip())
-
-        # Filter out empty sentences and create alignments
+        # Create 1-1 alignments for each sentence
         alignments = []
         for sentence in sentences:
-            sentence = sentence.strip()
-            if sentence:
+            if sentence.strip():
                 alignments.append((sentence, sentence))
 
         return alignments
 
     def _align_gale_church(
-        self, source_text: str, target_text: str
+        self, source_sentences: List[str], target_sentences: List[str]
     ) -> List[Tuple[str, str]]:
         """
-        Align texts using the Gale-Church algorithm.
+        Align sentences using the Gale-Church algorithm.
 
         Args:
-            source_text: The source language text.
-            target_text: The target language text.
+            source_sentences: List of source language sentences.
+            target_sentences: List of target language sentences.
 
         Returns:
             List of aligned (source_segment, target_segment) tuples.
         """
-        # Split texts into sentences
-        source_sentences = self._split_into_sentences(source_text)
-        target_sentences = self._split_into_sentences(target_text)
-
         if not source_sentences or not target_sentences:
             return []
 
@@ -102,22 +99,6 @@ class Aligner:
             result.append((src_segment, tgt_segment))
 
         return result
-
-    def _split_into_sentences(self, text: str) -> List[str]:
-        """
-        Split text into sentences.
-
-        Args:
-            text: The text to split.
-
-        Returns:
-            List of sentences.
-        """
-        # Split on sentence boundaries: . ! ? followed by whitespace
-        sentences = re.split(r"(?<=[.!?])\s+", text.strip())
-
-        # Filter out empty sentences
-        return [s.strip() for s in sentences if s.strip()]
 
     def _gale_church_dp(
         self, source_lengths: List[int], target_lengths: List[int]
