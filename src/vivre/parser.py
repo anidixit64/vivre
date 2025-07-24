@@ -542,11 +542,11 @@ class VivreParser:
                 links = toc_root.findall(".//{*}a")
 
                 for link in links:
-                    href = link.get("href")
-                    if href and link.text:
+                    href_attr = link.get("href")
+                    if href_attr is not None and link.text is not None:
                         title = link.text.strip()
                         # Clean up href (remove anchor if present)
-                        href = href.split("#")[0]
+                        href = href_attr.split("#")[0]
                         chapter_titles[href] = title
 
             except Exception as e:
