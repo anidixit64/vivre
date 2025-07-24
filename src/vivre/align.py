@@ -5,6 +5,8 @@ Text alignment functionality for matching source and target texts.
 import math
 from typing import List, Tuple
 
+import scipy.stats as stats
+
 
 class Aligner:
     """
@@ -24,25 +26,26 @@ class Aligner:
                           Defaults to "en-es" (English-Spanish).
         """
         # Language-specific parameters for the Gale-Church algorithm
+        # These parameters are based on empirical studies of translation length ratios
         self.language_params = {
             "en-es": {
-                "mean_ratio": 1.0,  # Mean length ratio (target/source)
-                "variance": 0.3,  # Variance of the length ratio
+                "c": 1.0,  # Mean length ratio (target/source)
+                "s2": 6.8,  # Variance of the difference (not ratio)
                 "gap_penalty": 3.0,  # Gap penalty (in standard deviations)
             },
             "en-fr": {
-                "mean_ratio": 1.1,
-                "variance": 0.35,
+                "c": 1.1,
+                "s2": 7.2,
                 "gap_penalty": 3.0,
             },
             "en-de": {
-                "mean_ratio": 1.2,
-                "variance": 0.4,
+                "c": 1.2,
+                "s2": 8.1,
                 "gap_penalty": 3.0,
             },
             "en-it": {
-                "mean_ratio": 1.05,
-                "variance": 0.32,
+                "c": 1.05,
+                "s2": 7.0,
                 "gap_penalty": 3.0,
             },
         }
@@ -53,8 +56,8 @@ class Aligner:
         )
 
         # Extract parameters for easier access
-        self.mean_ratio = self.params["mean_ratio"]
-        self.variance = self.params["variance"]
+        self.c = self.params["c"]  # Mean length ratio
+        self.s2 = self.params["s2"]  # Variance of the difference
         self.gap_penalty = self.params["gap_penalty"]
 
     def align(
@@ -217,7 +220,7 @@ class Aligner:
 
     def _alignment_cost(self, src_len: int, tgt_len: int) -> float:
         """
-        Calculate alignment cost using statistically sound Gale-Church model.
+        Calculate alignment cost using the correct Gale-Church statistical model.
 
         Args:
             src_len: Source sentence length.
@@ -229,66 +232,27 @@ class Aligner:
         if src_len == 0 and tgt_len == 0:
             return 0.0
 
-        # Calculate the length ratio
+        # Calculate delta using the correct Gale-Church formula:
+        # delta = (tgt_len - src_len * c) / sqrt(src_len * s²)
+        # where c is the mean length ratio and s² is the variance of the difference
         if src_len == 0:
-            ratio = float("inf")
-        elif tgt_len == 0:
-            ratio = 0.0
-        else:
-            ratio = tgt_len / src_len
-
-        # Calculate delta (number of standard deviations from mean)
-        if ratio == 0.0 or ratio == float("inf"):
             delta = float("inf")
         else:
-            delta = abs(ratio - self.mean_ratio) / self.variance
+            delta = abs(tgt_len - src_len * self.c) / math.sqrt(src_len * self.s2)
 
-        # Convert delta to probability using normal distribution CDF
-        # For large delta, use approximation to avoid numerical issues
+        # Calculate two-tailed probability using normal distribution
+        # P(|X| >= delta) = 2 * (1 - CDF(delta))
         if delta > 10:
             # Very unlikely match
             probability = 1e-10
         else:
-            # Use normal distribution CDF approximation
-            probability = self._normal_cdf(delta)
+            # Use scipy's normal CDF for accurate calculation
+            probability = 2 * (1 - stats.norm.cdf(delta))
 
         # Convert probability to cost (negative log probability)
         cost = -math.log(probability) if probability > 0 else 100.0
 
         return cost
-
-    def _normal_cdf(self, delta: float) -> float:
-        """
-        Calculate the cumulative distribution function of the normal distribution.
-
-        Args:
-            delta: Number of standard deviations from mean.
-
-        Returns:
-            Probability of observing a deviation as large or larger than delta.
-        """
-        # Use approximation for normal CDF
-        # This is the complementary error function approximation
-        if delta < 0:
-            return 1.0
-
-        # For delta >= 0, P(X >= delta) = 1 - P(X < delta)
-        # Using approximation: P(X < delta) ≈ 1 - 0.5 * erfc(delta/sqrt(2))
-        # where erfc is the complementary error function
-
-        # Simple approximation for erfc
-        if delta > 8:
-            return 1e-10  # Very small probability
-
-        # Use polynomial approximation for erfc
-        t = 1.0 / (1.0 + 0.5 * delta)
-        erfc = (
-            t
-            * math.exp(-delta * delta / 2.0)
-            * (1.0 - 0.5 * delta * delta * t * t * (1.0 - 0.5 * delta * delta * t * t))
-        )
-
-        return 0.5 * erfc
 
     def _gap_penalty_cost(self) -> float:
         """
@@ -297,9 +261,9 @@ class Aligner:
         Returns:
             Gap penalty cost.
         """
-        # Convert gap penalty (in standard deviations) to probability
+        # Convert gap penalty (in standard deviations) to two-tailed probability
         # A gap penalty of 3.0 means the cost is equivalent to a 3-sigma deviation
-        probability = self._normal_cdf(self.gap_penalty)
+        probability = 2 * (1 - stats.norm.cdf(self.gap_penalty))
 
         # Convert to cost
         return -math.log(probability) if probability > 0 else 100.0

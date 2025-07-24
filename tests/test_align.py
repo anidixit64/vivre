@@ -805,32 +805,32 @@ class TestAligner:
         """Test that language-specific parameters are correctly configured."""
         # Test English-Spanish parameters
         aligner_es = Aligner("en-es")
-        assert aligner_es.mean_ratio == 1.0
-        assert aligner_es.variance == 0.3
+        assert aligner_es.c == 1.0
+        assert aligner_es.s2 == 6.8
         assert aligner_es.gap_penalty == 3.0
 
         # Test English-French parameters
         aligner_fr = Aligner("en-fr")
-        assert aligner_fr.mean_ratio == 1.1
-        assert aligner_fr.variance == 0.35
+        assert aligner_fr.c == 1.1
+        assert aligner_fr.s2 == 7.2
         assert aligner_fr.gap_penalty == 3.0
 
         # Test English-German parameters
         aligner_de = Aligner("en-de")
-        assert aligner_de.mean_ratio == 1.2
-        assert aligner_de.variance == 0.4
+        assert aligner_de.c == 1.2
+        assert aligner_de.s2 == 8.1
         assert aligner_de.gap_penalty == 3.0
 
         # Test English-Italian parameters
         aligner_it = Aligner("en-it")
-        assert aligner_it.mean_ratio == 1.05
-        assert aligner_it.variance == 0.32
+        assert aligner_it.c == 1.05
+        assert aligner_it.s2 == 7.0
         assert aligner_it.gap_penalty == 3.0
 
         # Test unknown language pair (should use default)
         aligner_unknown = Aligner("en-xx")
-        assert aligner_unknown.mean_ratio == 1.0  # Default to en-es
-        assert aligner_unknown.variance == 0.3
+        assert aligner_unknown.c == 1.0  # Default to en-es
+        assert aligner_unknown.s2 == 6.8
         assert aligner_unknown.gap_penalty == 3.0
 
     def test_align_statistical_cost_calculation(self):
@@ -852,9 +852,7 @@ class TestAligner:
         assert gap_cost > 0, "Gap penalty should be positive"
         assert gap_cost < 100, "Gap penalty should be reasonable"
 
-        # Test normal CDF calculation
-        cdf_small = aligner._normal_cdf(0.5)
-        cdf_large = aligner._normal_cdf(3.0)
-        assert cdf_small > cdf_large, "Smaller delta should have higher probability"
-        assert 0 < cdf_small < 1, "CDF should be between 0 and 1"
-        assert 0 < cdf_large < 1, "CDF should be between 0 and 1"
+        # Test that the cost increases with larger deviations
+        cost_small = aligner._alignment_cost(50, 55)  # Small deviation
+        cost_large = aligner._alignment_cost(50, 100)  # Large deviation
+        assert cost_large > cost_small, "Larger deviations should have higher cost"
