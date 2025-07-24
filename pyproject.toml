@@ -21,6 +21,8 @@ rich = "^14.0.0"
 defusedxml = "^0.7.1"
 scipy = "^1.16.0"
 langdetect = "^1.0.9"
+beautifulsoup4 = "^4.13.4"
+lxml = "^6.0.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"

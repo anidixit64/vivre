@@ -22,8 +22,9 @@ import os
 import re
 import zipfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
+from bs4 import BeautifulSoup
 from defusedxml import ElementTree as ET
 
 
@@ -218,30 +219,7 @@ class VivreParser:
             ValueError: If the file path is invalid, file is not a valid EPUB,
                        or the EPUB structure cannot be parsed.
         """
-        # Validate input path (same validation as load_epub)
-        if file_path is None:
-            raise ValueError("File path cannot be None")
-
-        # Convert to string for validation
-        if isinstance(file_path, (str, Path)):
-            path_str = str(file_path).strip()
-        else:
-            raise ValueError(
-                f"File path must be a string or Path object, "
-                f"not {type(file_path).__name__}"
-            )
-
-        # Check for empty or whitespace-only paths
-        if not path_str:
-            raise ValueError("File path cannot be empty")
-
-        # Check for invalid characters in path
-        invalid_chars = ["\x00", "\n", "\r", "\t"]
-        for char in invalid_chars:
-            if char in path_str:
-                raise ValueError("File path contains invalid characters")
-
-        # Validate the file first
+        # Use load_epub for validation (DRY principle)
         if not self.load_epub(file_path):
             raise ValueError(f"Failed to load EPUB file: {file_path}")
 
@@ -350,10 +328,10 @@ class VivreParser:
 
     def _extract_chapter_content(self, chapter_content: bytes) -> Tuple[str, str]:
         """
-        Extract chapter title and text from HTML/XML content.
+        Extract chapter title and text from HTML/XML content using BeautifulSoup.
 
-        This method attempts to parse the chapter content as XML first,
-        falling back to regex-based extraction if XML parsing fails.
+        This method uses BeautifulSoup to robustly parse HTML/XML content,
+        handling malformed HTML that would cause XML parsers to fail.
 
         Args:
             chapter_content: Raw bytes of the chapter file.
@@ -361,84 +339,71 @@ class VivreParser:
         Returns:
             Tuple of (chapter_title, chapter_text).
         """
-        try:
-            # Parse the HTML/XML content
-            root = ET.fromstring(chapter_content)
+        # Decode content and parse with BeautifulSoup
+        content_str = chapter_content.decode("utf-8", errors="ignore")
+        # Use XML parser for EPUB content to avoid warnings
+        soup = BeautifulSoup(content_str, "lxml-xml")
 
-            # Try to find the title in various ways
-            title = self._extract_title(root)
+        # Extract title using BeautifulSoup selectors
+        title = self._extract_title(soup)
 
-            # Extract all text content
-            text = self._extract_text(root)
+        # Extract text using BeautifulSoup's get_text()
+        text = self._extract_text(soup)
 
-            # If we got "Untitled Chapter" but text starts with what looks like a title,
-            # try to extract the title from the beginning of the text
-            if title == "Untitled Chapter" and text.strip():
-                # Look for patterns like "1. Title" or "2. Title" at the beginning
-                # Stop at the first sentence boundary or when we hit the actual content
-                title_match = re.match(
-                    r"^(\d+\.?\s+[^.!?]+?)(?=\s+[A-Z]|$)", text.strip()
-                )
-                if title_match:
-                    title = title_match.group(1).strip()
+        # If we got "Untitled Chapter" but text starts with what looks like a title,
+        # try to extract the title from the beginning of the text
+        if title == "Untitled Chapter" and text.strip():
+            # Look for patterns like "1. Title" or "2. Title" at the beginning
+            # Stop at the first sentence boundary or when we hit the actual content
+            title_match = re.match(r"^(\d+\.?\s+[^.!?]+?)(?=\s+[A-Z]|$)", text.strip())
+            if title_match:
+                title = title_match.group(1).strip()
 
-            # Explicitly remove the title from the text if it appears at the beginning
-            if title and title != "Untitled Chapter":
-                text = self._remove_title_from_text(text, title)
+        # Explicitly remove the title from the text if it appears at the beginning
+        if title and title != "Untitled Chapter":
+            text = self._remove_title_from_text(text, title)
 
-            return title, text
+        return title, text
 
-        except ET.ParseError:
-            # If XML parsing fails, try to extract text using regex
-            content_str = chapter_content.decode("utf-8", errors="ignore")
-            title = self._extract_title_fallback(content_str)
-            text = self._extract_text_fallback(content_str)
-
-            # Explicitly remove the title from the text if it appears at the beginning
-            if title and title != "Untitled Chapter":
-                text = self._remove_title_from_text(text, title)
-
-            return title, text
-
-    def _extract_title(self, root: Any) -> str:
+    def _extract_title(self, soup: BeautifulSoup) -> str:
         """
-        Extract title from XML element using multiple strategies.
+        Extract title from BeautifulSoup object using multiple strategies.
 
         This method tries various selectors to find the chapter title,
         prioritizing more specific selectors over generic ones.
 
         Args:
-            root: The XML root element to search for titles.
+            soup: The BeautifulSoup object to search for titles.
 
         Returns:
             The extracted title, or "Untitled Chapter" if none found.
         """
         # Try different possible title locations in order of preference
         title_selectors = [
-            ".//{*}h1[@class='chapter']",  # Specific chapter headings
-            ".//{*}h1[@id*='chapter']",  # Chapter headings with chapter in ID
-            ".//{*}h1",  # Any h1
-            ".//{*}h2[@class='chapter']",  # Chapter h2 headings
-            ".//{*}h2",  # Any h2
-            ".//{*}h3[@class='chapter']",  # Chapter h3 headings
-            ".//{*}h3",  # Any h3
-            ".//{*}title",  # Title tag
-            ".//{*}head/{*}title",  # Head title
+            "h1.chapter",  # Specific chapter headings
+            "h1[id*='chapter']",  # Chapter headings with chapter in ID
+            "h1",  # Any h1
+            "h2.chapter",  # Chapter h2 headings
+            "h2",  # Any h2
+            "h3.chapter",  # Chapter h3 headings
+            "h3",  # Any h3
+            "title",  # Title tag
+            "head title",  # Head title
         ]
 
         for selector in title_selectors:
-            title_elem = root.find(selector)
-            if title_elem is not None and title_elem.text:
-                title_text = title_elem.text.strip()
+            title_elem = soup.select_one(selector)
+            if title_elem and title_elem.get_text().strip():
+                title_text = title_elem.get_text().strip()
                 # Skip generic titles that are likely not chapter titles
                 if title_text and not self._is_generic_title(title_text):
                     return title_text
 
         # If no title found, try to get the first meaningful heading text
         for tag in ["h1", "h2", "h3"]:
-            for elem in root.iter():
-                if elem.tag.endswith(tag) and elem.text and elem.text.strip():
-                    title_text = elem.text.strip()
+            for elem in soup.find_all(tag):
+                if elem.get_text().strip():
+                    title_text = elem.get_text().strip()
                     if not self._is_generic_title(title_text):
                         return title_text
 
@@ -574,33 +539,26 @@ class VivreParser:
 
         return chapter_titles
 
-    def _extract_text(self, root: Any) -> str:
+    def _extract_text(self, soup: BeautifulSoup) -> str:
         """
-        Extract all text content from XML element.
+        Extract all text content from BeautifulSoup object.
 
-        This method recursively extracts text from all elements,
-        preserving the natural reading order.
+        This method uses BeautifulSoup's get_text() method to extract
+        clean text content, handling malformed HTML gracefully.
 
         Args:
-            root: The XML root element to extract text from.
+            soup: The BeautifulSoup object to extract text from.
 
         Returns:
             Cleaned text content with normalized whitespace.
         """
-        # Get all text from body or root
-        body = root.find(".//{*}body")
+        # Focus on body content if available
+        body = soup.find("body")
         if body is not None:
-            root = body
+            soup = body
 
-        # Extract all text content
-        text_parts: List[str] = []
-        for elem in root.iter():
-            if elem.text and elem.text.strip():
-                text_parts.append(elem.text.strip())
-            if elem.tail and elem.tail.strip():
-                text_parts.append(elem.tail.strip())
-
-        text = " ".join(text_parts)
+        # Use BeautifulSoup's get_text() method for clean text extraction
+        text = soup.get_text(separator=" ", strip=True)
 
         # Clean up the text
         text = re.sub(
@@ -609,74 +567,6 @@ class VivreParser:
         text = text.strip()
 
         return text
-
-    def _extract_title_fallback(self, content: str) -> str:
-        """
-        Fallback title extraction using regex patterns.
-
-        This method is used when XML parsing fails and attempts to
-        extract titles using regular expressions.
-
-        Args:
-            content: The HTML content as a string.
-
-        Returns:
-            The extracted title, or "Untitled Chapter" if none found.
-        """
-        # Look for title tags
-        title_match = re.search(
-            r"<title[^>]*>(.*?)</title>", content, re.IGNORECASE | re.DOTALL
-        )
-        if title_match:
-            title_text = title_match.group(1).strip()
-            if not self._is_generic_title(title_text):
-                return title_text
-
-        # Look for h1 tags
-        h1_match = re.search(r"<h1[^>]*>(.*?)</h1>", content, re.IGNORECASE | re.DOTALL)
-        if h1_match:
-            title_text = h1_match.group(1).strip()
-            if not self._is_generic_title(title_text):
-                return title_text
-
-        # Look for h2 tags
-        h2_match = re.search(r"<h2[^>]*>(.*?)</h2>", content, re.IGNORECASE | re.DOTALL)
-        if h2_match:
-            title_text = h2_match.group(1).strip()
-            if not self._is_generic_title(title_text):
-                return title_text
-
-        return "Untitled Chapter"
-
-    def _extract_text_fallback(self, content: str) -> str:
-        """
-        Fallback text extraction using regex patterns.
-
-        This method is used when XML parsing fails and attempts to
-        extract text by removing HTML tags.
-
-        Args:
-            content: The HTML content as a string.
-
-        Returns:
-            Cleaned text content with HTML tags removed.
-        """
-        # Remove HTML tags and extract text
-        # First remove script and style tags
-        content = re.sub(
-            r"<script[^>]*>.*?</script>", "", content, flags=re.IGNORECASE | re.DOTALL
-        )
-        content = re.sub(
-            r"<style[^>]*>.*?</style>", "", content, flags=re.IGNORECASE | re.DOTALL
-        )
-
-        # Remove HTML tags
-        content = re.sub(r"<[^>]+>", "", content)
-
-        # Clean up whitespace
-        content = re.sub(r"\s+", " ", content)
-
-        return content.strip()
 
     def _is_non_story_content(self, title: str, href: str) -> bool:
         """

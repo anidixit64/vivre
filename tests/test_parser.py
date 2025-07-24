@@ -1096,27 +1096,87 @@ class TestParser:
                 assert text.startswith("Jack abrió los ojos")
 
     def test_extract_title_fallback_without_chapter_pattern(self):
-        """Test title extraction fallback without chapter number patterns."""
-        from unittest.mock import patch
-
+        """Test title extraction fallback when no chapter pattern is found."""
         from vivre.parser import VivreParser
 
         parser = VivreParser()
 
-        content = """
+        # Test with content that has no chapter pattern
+        content = b"""
         <html>
+        <head><title>Some Title</title></head>
         <body>
-        Jack abrió los ojos y se acomodó los lentes.
+        <p>This is some content without a chapter pattern.</p>
+        <p>It should still extract a title from the title tag.</p>
         </body>
         </html>
         """
 
-        # Mock the XML parsing to fail and trigger fallback
-        with patch.object(parser, "_extract_title", return_value="Untitled Chapter"):
-            with patch.object(
-                parser, "_extract_text", return_value="Jack abrió los ojos"
-            ):
-                title, text = parser._extract_chapter_content(content.encode("utf-8"))
-                # Should remain "Untitled Chapter" if no pattern found
-                assert title == "Untitled Chapter"
-                assert text == "Jack abrió los ojos"
+        title, text = parser._extract_chapter_content(content)
+        assert title == "Some Title"
+        assert "This is some content without a chapter pattern" in text
+
+    def test_beautifulsoup_malformed_html_handling(self):
+        """Test that BeautifulSoup handles malformed HTML gracefully."""
+        from vivre.parser import VivreParser
+
+        parser = VivreParser()
+
+        # Test with severely malformed HTML that would break XML parsing
+        malformed_content = b"""
+        <html>
+        <head><title>Chapter 1</title></head>
+        <body>
+        <h1>Chapter 1: The Beginning</h1>
+        <p>This is the first paragraph.
+        <p>This paragraph has no closing tag.
+        <div>This div is not closed either
+        <h2>Subheading</h2>
+        <p>More content here.</p>
+        </body>
+        </html>
+        """
+
+        # This should not raise an exception and should extract content
+        title, text = parser._extract_chapter_content(malformed_content)
+
+        # Should extract title from h1
+        assert "Chapter 1: The Beginning" in title
+        assert title != "Untitled Chapter"
+
+        # Should extract text content despite malformed HTML
+        assert "This is the first paragraph" in text
+        assert "This paragraph has no closing tag" in text
+        assert "More content here" in text
+
+    def test_beautifulsoup_vs_xml_parsing(self):
+        """Test that BeautifulSoup handles content that would break XML parsing."""
+        from vivre.parser import VivreParser
+
+        parser = VivreParser()
+
+        # Content with unclosed tags and invalid XML that would break ElementTree
+        problematic_content = b"""
+        <html>
+        <head><title>Test Chapter</title></head>
+        <body>
+        <h1>Test Chapter</h1>
+        <p>This content has <b>unclosed tags and <i>nested unclosed tags
+        <p>Another paragraph with <a href="http://example.com">unclosed link
+        <div>Unclosed div with <span>unclosed span
+        <p>Final paragraph.</p>
+        </body>
+        </html>
+        """
+
+        # This should work with BeautifulSoup but would fail with ElementTree
+        title, text = parser._extract_chapter_content(problematic_content)
+
+        # Should extract title
+        assert title == "Test Chapter"
+
+        # Should extract text content despite malformed HTML
+        assert "This content has" in text
+        assert "unclosed tags" in text
+        assert "Another paragraph" in text
+        assert "Final paragraph" in text
