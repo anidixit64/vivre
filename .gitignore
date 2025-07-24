@@ -147,3 +147,6 @@ Thumbs.db
 # Large test files
 *.epub
 tests/data/*.epub
+
+# Allow test data files
+!tests/data/*.epub

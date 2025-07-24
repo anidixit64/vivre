@@ -1023,3 +1023,100 @@ class TestParser:
             print(
                 f"✓ {filename}: Extracted {len(chapters)} story chapters successfully"
             )
+
+    def test_remove_title_from_text(self):
+        """Test the _remove_title_from_text method."""
+        from vivre.parser import VivreParser
+
+        parser = VivreParser()
+
+        # Test exact match removal
+        text = "2. El fin está cerca Jack abrió los ojos"
+        title = "2. El fin está cerca"
+        result = parser._remove_title_from_text(text, title)
+        assert result == "Jack abrió los ojos"
+
+        # Test variation removal (without period)
+        text = "2 El fin está cerca Jack abrió los ojos"
+        title = "2. El fin está cerca"
+        result = parser._remove_title_from_text(text, title)
+        assert result == "Jack abrió los ojos"
+
+        # Test with extra whitespace
+        text = "  2. El fin está cerca  Jack abrió los ojos"
+        title = "2. El fin está cerca"
+        result = parser._remove_title_from_text(text, title)
+        assert result == "Jack abrió los ojos"
+
+        # Test with no title to remove
+        text = "Jack abrió los ojos"
+        title = "2. El fin está cerca"
+        result = parser._remove_title_from_text(text, title)
+        assert result == "Jack abrió los ojos"
+
+        # Test with empty title
+        text = "Jack abrió los ojos"
+        title = ""
+        result = parser._remove_title_from_text(text, title)
+        assert result == "Jack abrió los ojos"
+
+        # Test with "Untitled Chapter"
+        text = "Jack abrió los ojos"
+        title = "Untitled Chapter"
+        result = parser._remove_title_from_text(text, title)
+        assert result == "Jack abrió los ojos"
+
+    def test_extract_title_fallback_with_chapter_pattern(self):
+        """Test title extraction fallback with chapter number patterns."""
+        from unittest.mock import patch
+
+        from vivre.parser import VivreParser
+
+        parser = VivreParser()
+
+        # Test with chapter number pattern
+        content = """
+        <html>
+        <body>
+        2. El fin está cerca Jack abrió los ojos y se acomodó los lentes.
+        </body>
+        </html>
+        """
+
+        # Mock the XML parsing to fail and trigger fallback
+        with patch.object(parser, "_extract_title", return_value="Untitled Chapter"):
+            with patch.object(
+                parser,
+                "_extract_text",
+                return_value="2. El fin está cerca Jack abrió los ojos",
+            ):
+                title, text = parser._extract_chapter_content(content.encode("utf-8"))
+                # The fallback should extract the title from the text
+                assert title == "2. El fin está cerca"
+                assert text.startswith("Jack abrió los ojos")
+
+    def test_extract_title_fallback_without_chapter_pattern(self):
+        """Test title extraction fallback without chapter number patterns."""
+        from unittest.mock import patch
+
+        from vivre.parser import VivreParser
+
+        parser = VivreParser()
+
+        content = """
+        <html>
+        <body>
+        Jack abrió los ojos y se acomodó los lentes.
+        </body>
+        </html>
+        """
+
+        # Mock the XML parsing to fail and trigger fallback
+        with patch.object(parser, "_extract_title", return_value="Untitled Chapter"):
+            with patch.object(
+                parser, "_extract_text", return_value="Jack abrió los ojos"
+            ):
+                title, text = parser._extract_chapter_content(content.encode("utf-8"))
+                # Should remain "Untitled Chapter" if no pattern found
+                assert title == "Untitled Chapter"
+                assert text == "Jack abrió los ojos"
