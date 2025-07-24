@@ -39,6 +39,13 @@ jobs:
       if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
       run: poetry install --only=main,dev
 
+    - name: Install spaCy models
+      run: |
+        poetry run python -m spacy download en_core_web_sm
+        poetry run python -m spacy download es_core_news_sm
+        poetry run python -m spacy download fr_core_news_sm
+        poetry run python -m spacy download it_core_news_sm
+
     - name: Run black (check mode)
       run: poetry run black --check --diff .
 
