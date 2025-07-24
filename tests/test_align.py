@@ -181,3 +181,163 @@ class TestAligner:
             ), f"Segments should match: '{source_seg}' != '{target_seg}'"
             assert len(source_seg) > 0, "Source segment should not be empty"
             assert len(target_seg) > 0, "Target segment should not be empty"
+
+    def test_align_english_spanish_simple(self):
+        """Test alignment of English-Spanish translation pairs (should fail with current implementation)."""
+        aligner = Aligner()
+
+        source_text = "Hello world. How are you today?"
+        target_text = "Hola mundo. ¿Cómo estás hoy?"
+
+        alignment = aligner.align(source_text, target_text)
+
+        # Should have 2 aligned segments (one for each sentence)
+        assert len(alignment) == 2, "Should have 2 aligned segments"
+
+        # Each segment should contain corresponding translations
+        source_seg1, target_seg1 = alignment[0]
+        source_seg2, target_seg2 = alignment[1]
+
+        # First sentence: "Hello world." should align with "Hola mundo."
+        assert (
+            "Hello world" in source_seg1
+        ), "First source segment should contain 'Hello world'"
+        assert (
+            "Hola mundo" in target_seg1
+        ), "First target segment should contain 'Hola mundo'"
+
+        # Second sentence: "How are you today?" should align with "¿Cómo estás hoy?"
+        assert (
+            "How are you today" in source_seg2
+        ), "Second source segment should contain 'How are you today'"
+        assert (
+            "Cómo estás hoy" in target_seg2
+        ), "Second target segment should contain 'Cómo estás hoy'"
+
+    def test_align_english_spanish_complex(self):
+        """Test alignment of more complex English-Spanish translation pairs (should fail with current implementation)."""
+        aligner = Aligner()
+
+        source_text = "The cat is sleeping. The dog is running. The bird is flying."
+        target_text = (
+            "El gato está durmiendo. El perro está corriendo. El pájaro está volando."
+        )
+
+        alignment = aligner.align(source_text, target_text)
+
+        # Should have 3 aligned segments (one for each sentence)
+        assert len(alignment) == 3, "Should have 3 aligned segments"
+
+        # Each segment should contain corresponding translations
+        for i, (source_seg, target_seg) in enumerate(alignment):
+            assert len(source_seg) > 0, f"Source segment {i+1} should not be empty"
+            assert len(target_seg) > 0, f"Target segment {i+1} should not be empty"
+
+            # Verify that segments contain expected content
+            if i == 0:  # "The cat is sleeping" / "El gato está durmiendo"
+                assert (
+                    "cat" in source_seg.lower()
+                ), "First source segment should contain 'cat'"
+                assert (
+                    "gato" in target_seg.lower()
+                ), "First target segment should contain 'gato'"
+            elif i == 1:  # "The dog is running" / "El perro está corriendo"
+                assert (
+                    "dog" in source_seg.lower()
+                ), "Second source segment should contain 'dog'"
+                assert (
+                    "perro" in target_seg.lower()
+                ), "Second target segment should contain 'perro'"
+            elif i == 2:  # "The bird is flying" / "El pájaro está volando"
+                assert (
+                    "bird" in source_seg.lower()
+                ), "Third source segment should contain 'bird'"
+                assert (
+                    "pájaro" in target_seg.lower()
+                ), "Third target segment should contain 'pájaro'"
+
+    def test_align_english_spanish_questions(self):
+        """Test alignment of English-Spanish question pairs (should fail with current implementation)."""
+        aligner = Aligner()
+
+        source_text = "What is your name? Where do you live? How old are you?"
+        target_text = "¿Cómo te llamas? ¿Dónde vives? ¿Cuántos años tienes?"
+
+        alignment = aligner.align(source_text, target_text)
+
+        # Should have 3 aligned segments (one for each question)
+        assert len(alignment) == 3, "Should have 3 aligned segments"
+
+        # Each segment should contain corresponding translations
+        for i, (source_seg, target_seg) in enumerate(alignment):
+            assert len(source_seg) > 0, f"Source segment {i+1} should not be empty"
+            assert len(target_seg) > 0, f"Target segment {i+1} should not be empty"
+
+            # Verify that segments contain expected content
+            if i == 0:  # "What is your name?" / "¿Cómo te llamas?"
+                assert (
+                    "name" in source_seg.lower()
+                ), "First source segment should contain 'name'"
+                assert (
+                    "llamas" in target_seg.lower()
+                ), "First target segment should contain 'llamas'"
+            elif i == 1:  # "Where do you live?" / "¿Dónde vives?"
+                assert (
+                    "live" in source_seg.lower()
+                ), "Second source segment should contain 'live'"
+                assert (
+                    "vives" in target_seg.lower()
+                ), "Second target segment should contain 'vives'"
+            elif i == 2:  # "How old are you?" / "¿Cuántos años tienes?"
+                assert (
+                    "old" in source_seg.lower()
+                ), "Third source segment should contain 'old'"
+                assert (
+                    "años" in target_seg.lower()
+                ), "Third target segment should contain 'años'"
+
+    def test_align_english_spanish_story(self):
+        """Test alignment of English-Spanish story segments (should fail with current implementation)."""
+        aligner = Aligner()
+
+        source_text = "Once upon a time, there was a little girl. She lived in a village near the forest. Her grandmother gave her a red riding hood."
+        target_text = "Érase una vez, había una niña pequeña. Ella vivía en un pueblo cerca del bosque. Su abuela le dio una caperucita roja."
+
+        alignment = aligner.align(source_text, target_text)
+
+        # Should have 3 aligned segments (one for each sentence)
+        assert len(alignment) == 3, "Should have 3 aligned segments"
+
+        # Each segment should contain corresponding translations
+        for i, (source_seg, target_seg) in enumerate(alignment):
+            assert len(source_seg) > 0, f"Source segment {i+1} should not be empty"
+            assert len(target_seg) > 0, f"Target segment {i+1} should not be empty"
+
+            # Verify that segments contain expected content
+            if (
+                i == 0
+            ):  # "Once upon a time, there was a little girl" / "Érase una vez, había una niña pequeña"
+                assert (
+                    "little girl" in source_seg.lower()
+                ), "First source segment should contain 'little girl'"
+                assert (
+                    "niña pequeña" in target_seg.lower()
+                ), "First target segment should contain 'niña pequeña'"
+            elif (
+                i == 1
+            ):  # "She lived in a village near the forest" / "Ella vivía en un pueblo cerca del bosque"
+                assert (
+                    "village" in source_seg.lower()
+                ), "Second source segment should contain 'village'"
+                assert (
+                    "pueblo" in target_seg.lower()
+                ), "Second target segment should contain 'pueblo'"
+            elif (
+                i == 2
+            ):  # "Her grandmother gave her a red riding hood" / "Su abuela le dio una caperucita roja"
+                assert (
+                    "grandmother" in source_seg.lower()
+                ), "Third source segment should contain 'grandmother'"
+                assert (
+                    "abuela" in target_seg.lower()
+                ), "Third target segment should contain 'abuela'"
