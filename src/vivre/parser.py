@@ -362,7 +362,7 @@ class VivreParser:
                 raise  # Re-raise our specific validation errors
             raise ValueError(f"Error reading EPUB file: {e}")
 
-        # If we get here, the file is valid
+            # If we get here, the file is valid
         self.file_path = file_path
         self._is_loaded = True
         return True
@@ -433,7 +433,8 @@ class VivreParser:
                 # Get the base directory for the content files
                 content_dir = Path(content_opf_path).parent
 
-                # Step 3: Extract chapter titles from table of contents using EPUB standards
+                # Step 3: Extract chapter titles from table of contents using EPUB
+                # standards
                 chapter_titles = self._extract_chapter_titles(
                     epub_zip, content_dir, content_opf
                 )
@@ -485,7 +486,8 @@ class VivreParser:
                         if href in chapter_titles:
                             chapter_title = chapter_titles[href]
 
-                        # Skip if still a generic title (check without soup for basic validation)
+                        # Skip if still a generic title (check without soup for basic
+                        # validation)
                         if (
                             len(chapter_title.strip()) < 3
                             or len(chapter_title.split()) > 15
@@ -503,7 +505,8 @@ class VivreParser:
                         chapters.append((chapter_title, chapter_text))
                     except Exception as e:
                         # Skip chapters that can't be parsed
-                        print(f"Warning: Could not parse chapter {href}: {e}")
+                        warning_msg = f"Warning: Could not parse chapter {href}: {e}"
+                        print(warning_msg)
                         continue
 
         except zipfile.BadZipFile:
@@ -539,7 +542,8 @@ class VivreParser:
         # Extract text using BeautifulSoup's get_text()
         text = self._extract_text(soup)
 
-        # If we got "Untitled Chapter" but text starts with what looks like a title,
+        # If we got "Untitled Chapter" but text starts with what looks like a
+        # title,
         # try to extract the title from the beginning of the text
         if title == "Untitled Chapter" and text.strip():
             # Look for patterns like "1. Title" or "2. Title" at the beginning
@@ -604,7 +608,8 @@ class VivreParser:
         Check if a title is generic and likely not a chapter title.
 
         This method uses content-agnostic rules to identify titles that are
-        probably book titles or other generic content rather than specific chapter titles.
+        probably book titles or other generic content rather than specific
+        chapter titles.
 
         Args:
             title: The title to check.
@@ -627,7 +632,8 @@ class VivreParser:
         if self._book_title and title_lower == self._book_title.lower():
             return True
 
-        # Check if title matches the HTML document title (but allow if it's the only title found)
+        # Check if title matches the HTML document title (but allow if it's the
+        # only title found)
         if soup:
             head_title = soup.find("title")
             if head_title and head_title.get_text().strip():
@@ -652,7 +658,8 @@ class VivreParser:
         """
         Extract chapter titles from the table of contents using EPUB standards.
 
-        This method follows the EPUB specification to find and parse the navigation document:
+        This method follows the EPUB specification to find and parse the
+        navigation document:
         - EPUB3: HTML navigation document with properties="nav"
         - EPUB2: NCX file referenced in spine toc attribute
 
@@ -708,7 +715,8 @@ class VivreParser:
 
             except Exception as e:
                 print(
-                    f"Warning: Could not extract chapter titles from navigation document: {e}"
+                    f"Warning: Could not extract chapter titles from navigation "
+                    f"document: {e}"
                 )
 
         # Fallback to old method if standards-compliant method fails
