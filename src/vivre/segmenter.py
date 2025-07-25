@@ -121,16 +121,17 @@ class Segmenter:
         # Load the model with only necessary components for sentence segmentation
         try:
             # Disable unnecessary components to improve performance
-            # We only need the sentence segmenter (senter), not tagger, parser, NER, etc.
+            # We only need the sentence segmenter (senter), not tagger, parser, NER,
+            # etc.
             model = spacy.load(
                 model_name,
-                disable=["tagger", "parser", "ner", "lemmatizer", "attribute_ruler"]
+                disable=["tagger", "parser", "ner", "lemmatizer", "attribute_ruler"],
             )
-            
+
             # Add sentencizer if it's not already in the pipeline
             if "sentencizer" not in model.pipe_names:
                 model.add_pipe("sentencizer")
-            
+
             self._models[model_name] = model
             self._model_names[lang_code] = model_name
             return model
@@ -186,13 +187,15 @@ class Segmenter:
 
         return sentences
 
-    def segment_batch(self, texts: List[str], language: Optional[str] = None) -> List[List[str]]:
+    def segment_batch(
+        self, texts: List[str], language: Optional[str] = None
+    ) -> List[List[str]]:
         """
         Segment multiple texts into sentences using spaCy's optimized batch processing.
 
         This method uses spaCy's pipe() method for efficient batch processing,
-        making better use of multi-core CPUs and improving performance significantly
-        for bulk tasks.
+        making better use of multi-core CPUs and improving performance
+        significantly for bulk tasks.
 
         Args:
             texts: List of texts to segment.

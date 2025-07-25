@@ -803,16 +803,16 @@ class TestSegmenter:
 
         # Test with English text but Spanish language override
         text = "This is English text. It should be processed as Spanish."
-        
-        with patch.object(segmenter, '_detect_language') as mock_detect:
+
+        with patch.object(segmenter, "_detect_language") as mock_detect:
             mock_detect.return_value = "en"  # Auto-detect would return English
-            
+
             # Use Spanish override
             segments = segmenter.segment(text, language="es")
-            
+
             # Should not call auto-detection when language is provided
             mock_detect.assert_not_called()
-            
+
             # Should process with Spanish model
             assert isinstance(segments, list)
             assert len(segments) > 0
@@ -827,7 +827,7 @@ class TestSegmenter:
         texts = [
             "First sentence. Second sentence.",
             "Third sentence. Fourth sentence.",
-            "Fifth sentence."
+            "Fifth sentence.",
         ]
 
         # Process in batch
@@ -836,12 +836,12 @@ class TestSegmenter:
         # Verify results
         assert isinstance(results, list)
         assert len(results) == 3
-        
+
         # Each result should be a list of sentences
         assert isinstance(results[0], list)
         assert isinstance(results[1], list)
         assert isinstance(results[2], list)
-        
+
         # Check content
         assert len(results[0]) == 2  # "First sentence." and "Second sentence."
         assert len(results[1]) == 2  # "Third sentence." and "Fourth sentence."
@@ -871,7 +871,7 @@ class TestSegmenter:
         texts = [
             "This is English text.",
             "Este es texto en español.",
-            "Ceci est du texte français."
+            "Ceci est du texte français.",
         ]
 
         # Process with English override (should use English model for all)
@@ -880,7 +880,7 @@ class TestSegmenter:
         # Verify results
         assert isinstance(results, list)
         assert len(results) == 3
-        
+
         # All should be processed (even if not optimal for non-English text)
         assert all(isinstance(result, list) for result in results)
         assert all(len(result) > 0 for result in results)
