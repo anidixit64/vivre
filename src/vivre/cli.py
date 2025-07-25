@@ -327,9 +327,7 @@ def _format_alignments_as_csv(output_data: dict) -> str:
     source_lang, target_lang = output_data["language_pair"].split("-")
 
     # Enhanced CSV with metadata
-    metadata_line = (
-        f'"{output_data["book_title"]}","{output_data["language_pair"]}","{output_data["method"]}","{output_data["source_epub"]}","{output_data["target_epub"]}","{output_data["total_alignments"]}"'
-    )
+    metadata_line = f'"{output_data["book_title"]}","{output_data["language_pair"]}","{output_data["method"]}","{output_data["source_epub"]}","{output_data["target_epub"]}","{output_data["total_alignments"]}"'
     lines = [
         "book_title,language_pair,method,source_epub,target_epub,total_alignments",
         metadata_line,
@@ -340,9 +338,7 @@ def _format_alignments_as_csv(output_data: dict) -> str:
     for alignment in output_data["alignments"]:
         source_text = alignment["source"].replace('"', '""')  # Escape quotes
         target_text = alignment["target"].replace('"', '""')  # Escape quotes
-        alignment_line = (
-            f'"{alignment["id"]}","{source_text}","{target_text}","{alignment["source_length"]}","{alignment["target_length"]}"'
-        )
+        alignment_line = f'"{alignment["id"]}","{source_text}","{target_text}","{alignment["source_length"]}","{alignment["target_length"]}"'
         lines.append(alignment_line)
 
     return "\n".join(lines)

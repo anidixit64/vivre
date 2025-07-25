@@ -14,14 +14,23 @@ Main Components:
 Top-level Functions:
     - read(): Parse EPUB files and extract chapters
     - align(): Align parallel texts and output in various formats
+    - quick_align(): Simple one-liner for basic alignment
+    - get_supported_languages(): Get list of supported languages
 
 Example:
     >>> import vivre
 
     # Simple usage with top-level functions
     >>> chapters = vivre.read('path/to/epub')
+    >>> print(f"Found {len(chapters)} chapters")
     >>> sentences = chapters.segment()
     >>> corpus = vivre.align('english.epub', 'french.epub', form='json')
+    
+    # Quick alignment for simple use cases
+    >>> pairs = vivre.quick_align('english.epub', 'french.epub')
+    >>> for source, target in pairs[:3]:
+    ...     print(f"EN: {source}")
+    ...     print(f"FR: {target}")
 
     # Advanced usage with classes
     >>> from vivre import VivrePipeline
@@ -32,10 +41,20 @@ Example:
     >>> for source, target in alignments:
     ...     print(f"EN: {source}")
     ...     print(f"ES: {target}")
+
+Command Line Usage:
+    # Parse an EPUB file
+    $ vivre parse book.epub
+    
+    # Align two EPUB files
+    $ vivre align english.epub french.epub --format json
+    
+    # Get help
+    $ vivre --help
 """
 
 from .align import Aligner
-from .api import Chapters, align, read
+from .api import Chapters, align, read, quick_align, get_supported_languages
 from .integration import VivrePipeline, create_pipeline
 from .parser import VivreParser
 from .segmenter import Segmenter
@@ -52,5 +71,7 @@ __all__ = [
     "create_pipeline",
     "read",
     "align",
+    "quick_align",
+    "get_supported_languages",
     "Chapters",
 ]

@@ -4,6 +4,8 @@ Top-level API functions for the vivre library.
 This module provides simple, user-friendly functions for common tasks:
 - read(): Parse EPUB files and extract chapters
 - align(): Align parallel texts and output in various formats
+- quick_align(): Simple one-liner for basic alignment
+- get_supported_languages(): Get list of supported languages
 """
 
 import json
@@ -62,6 +64,22 @@ class Chapters:
             )
         return self._segmented_chapters
 
+    def __len__(self) -> int:
+        """Return the number of chapters."""
+        return len(self.chapters)
+
+    def __getitem__(self, index: int) -> Tuple[str, str]:
+        """Get a chapter by index."""
+        return self.chapters[index]
+
+    def __iter__(self):
+        """Iterate over chapters."""
+        return iter(self.chapters)
+
+    def __repr__(self) -> str:
+        """String representation."""
+        return f"Chapters(book_title='{self.book_title}', chapters={len(self.chapters)})"
+
 
 def read(epub_path: Union[str, Path]) -> Chapters:
     """
@@ -73,14 +91,27 @@ def read(epub_path: Union[str, Path]) -> Chapters:
     Returns:
         Chapters object containing parsed chapters
 
+    Raises:
+        FileNotFoundError: If the EPUB file doesn't exist
+        ValueError: If the file is not a valid EPUB
+
     Example:
         >>> chapters = vivre.read('path/to/epub')
-        >>> print(f"Found {len(chapters.chapters)} chapters")
+        >>> print(f"Found {len(chapters)} chapters")
+        >>> for title, content in chapters:
+        ...     print(f"Chapter: {title}")
     """
+    epub_path = Path(epub_path)
+    if not epub_path.exists():
+        raise FileNotFoundError(f"EPUB file not found: {epub_path}")
+    
     parser = VivreParser()
-    chapters = parser.parse_epub(epub_path)
-    book_title = getattr(parser, "_book_title", "")
-    return Chapters(chapters, book_title)
+    try:
+        chapters = parser.parse_epub(epub_path)
+        book_title = getattr(parser, "_book_title", "")
+        return Chapters(chapters, book_title)
+    except Exception as e:
+        raise ValueError(f"Failed to parse EPUB file {epub_path}: {e}")
 
 
 def align(
@@ -98,58 +129,131 @@ def align(
         source_epub: Path to source language EPUB
         target_epub: Path to target language EPUB
         method: Alignment method (currently only "gale-church" supported)
-        form: Output format ("json", "text", "csv")
+        form: Output format ("json", "text", "csv", "xml", "dict")
         language_pair: Language pair code (e.g., "en-fr", auto-detected if None)
         **kwargs: Additional arguments passed to the pipeline
 
     Returns:
         Aligned corpus in the specified format
 
+    Raises:
+        FileNotFoundError: If either EPUB file doesn't exist
+        ValueError: If method or format is not supported
+
     Example:
         >>> corpus = vivre.align('english.epub', 'french.epub', form='json')
         >>> print(corpus)
+        
+        >>> # Get as dictionary for programmatic access
+        >>> data = vivre.align('english.epub', 'french.epub', form='dict')
+        >>> print(f"Found {data['total_alignments']} alignments")
     """
+    source_epub = Path(source_epub)
+    target_epub = Path(target_epub)
+    
+    if not source_epub.exists():
+        raise FileNotFoundError(f"Source EPUB file not found: {source_epub}")
+    if not target_epub.exists():
+        raise FileNotFoundError(f"Target EPUB file not found: {target_epub}")
+    
     if method != "gale-church":
-        raise ValueError(
-            f"Method '{method}' not supported. Only 'gale-church' is available."
-        )
-
+        raise ValueError(f"Method '{method}' not supported. Only 'gale-church' is available.")
+    
+    if form.lower() not in ["json", "dict", "text", "csv", "xml"]:
+        raise ValueError(f"Format '{form}' not supported. Use 'json', 'dict', 'text', 'csv', or 'xml'.")
+    
     # Auto-detect language pair from filenames if not provided
     if language_pair is None:
         source_lang = _detect_language_from_filename(source_epub)
         target_lang = _detect_language_from_filename(target_epub)
         language_pair = f"{source_lang}-{target_lang}"
-
+    
     # Create pipeline and process
-    pipeline = VivrePipeline(language_pair, **kwargs)
-
-    # Parse both EPUBs
-    source_chapters = pipeline.parser.parse_epub(source_epub)
-    target_chapters = pipeline.parser.parse_epub(target_epub)
-
-    # Get book titles
-    source_title = getattr(pipeline.parser, "_book_title", "")
-    target_title = getattr(pipeline.parser, "_book_title", "")
-    book_title = source_title or target_title
-
-    # Process chapters and create aligned corpus
-    aligned_corpus = _create_aligned_corpus(
-        source_chapters, target_chapters, pipeline, book_title, language_pair
-    )
-
-    # Format output
-    if form == "json":
-        return json.dumps(aligned_corpus, indent=2, ensure_ascii=False)
-    elif form == "dict":
-        return aligned_corpus
-    elif form == "text":
-        return _format_as_text(aligned_corpus)
-    elif form == "csv":
-        return _format_as_csv(aligned_corpus)
-    else:
-        raise ValueError(
-            f"Format '{form}' not supported. Use 'json', 'dict', 'text', or 'csv'."
+    try:
+        pipeline = VivrePipeline(language_pair, **kwargs)
+        
+        # Parse both EPUBs
+        source_chapters = pipeline.parser.parse_epub(source_epub)
+        target_chapters = pipeline.parser.parse_epub(target_epub)
+        
+        # Get book titles
+        source_title = getattr(pipeline.parser, '_book_title', '')
+        target_title = getattr(pipeline.parser, '_book_title', '')
+        book_title = source_title or target_title
+        
+        # Process chapters and create aligned corpus
+        aligned_corpus = _create_aligned_corpus(
+            source_chapters, target_chapters, pipeline, book_title, language_pair
         )
+        
+        # Format output
+        if form.lower() == "json":
+            return json.dumps(aligned_corpus, indent=2, ensure_ascii=False)
+        elif form.lower() == "dict":
+            return aligned_corpus
+        elif form.lower() == "text":
+            return _format_as_text(aligned_corpus)
+        elif form.lower() == "csv":
+            return _format_as_csv(aligned_corpus)
+        elif form.lower() == "xml":
+            return _format_as_xml(aligned_corpus)
+        else:
+            return json.dumps(aligned_corpus, indent=2, ensure_ascii=False)
+    except Exception as e:
+        raise ValueError(f"Failed to align EPUB files: {e}")
+
+
+def quick_align(
+    source_epub: Union[str, Path],
+    target_epub: Union[str, Path],
+    language_pair: Optional[str] = None,
+) -> List[Tuple[str, str]]:
+    """
+    Quick alignment function that returns simple sentence pairs.
+    
+    This is a convenience function for when you just need the aligned sentences
+    without the full metadata and formatting options.
+
+    Args:
+        source_epub: Path to source language EPUB
+        target_epub: Path to target language EPUB
+        language_pair: Language pair code (auto-detected if None)
+
+    Returns:
+        List of (source_sentence, target_sentence) tuples
+
+    Example:
+        >>> pairs = vivre.quick_align('english.epub', 'french.epub')
+        >>> for source, target in pairs[:5]:  # Show first 5 pairs
+        ...     print(f"EN: {source}")
+        ...     print(f"FR: {target}")
+        ...     print()
+    """
+    result = align(source_epub, target_epub, form="dict", language_pair=language_pair)
+    
+    # Extract sentence pairs from the result
+    pairs = []
+    for chapter_data in result["chapters"].values():
+        for alignment in chapter_data["alignments"]:
+            source_lang, target_lang = result["language_pair"].split("-")
+            pairs.append((alignment[source_lang], alignment[target_lang]))
+    
+    return pairs
+
+
+def get_supported_languages() -> List[str]:
+    """
+    Get a list of supported languages for segmentation.
+    
+    Returns:
+        List of supported language codes
+        
+    Example:
+        >>> langs = vivre.get_supported_languages()
+        >>> print(f"Supported languages: {', '.join(langs)}")
+    """
+    segmenter = Segmenter()
+    return list(segmenter._supported_languages.keys())
 
 
 def _detect_language_from_filename(filepath: Union[str, Path]) -> str:
@@ -253,3 +357,36 @@ def _format_as_csv(corpus: Dict[str, Any]) -> str:
             lines.append(f'"{chapter_num}","{title}","{source_text}","{target_text}"')
 
     return "\n".join(lines)
+
+
+def _format_as_xml(corpus: Dict[str, Any]) -> str:
+    """Format corpus as XML."""
+    source_lang, target_lang = corpus['language_pair'].split('-')
+    
+    xml_lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<alignments>',
+        f'  <book_title>{corpus["book_title"]}</book_title>',
+        f'  <language_pair>{corpus["language_pair"]}</language_pair>',
+        f'  <total_alignments>{len(corpus["chapters"])}</total_alignments>',
+    ]
+    
+    for chapter_num, chapter_data in corpus['chapters'].items():
+        xml_lines.extend([
+            f'  <chapter number="{chapter_num}">',
+            f'    <title>{chapter_data["title"]}</title>',
+            '    <alignments>',
+        ])
+        
+        for alignment in chapter_data['alignments']:
+            xml_lines.extend([
+                '      <alignment>',
+                f'        <{source_lang}>{alignment[source_lang]}</{source_lang}>',
+                f'        <{target_lang}>{alignment[target_lang]}</{target_lang}>',
+                '      </alignment>',
+            ])
+        
+        xml_lines.extend(['    </alignments>', '  </chapter>'])
+    
+    xml_lines.append('</alignments>')
+    return '\n'.join(xml_lines)

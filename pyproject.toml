@@ -8,6 +8,9 @@ packages = [
     {include = "vivre", from = "src"}
 ]
 
+[tool.poetry.scripts]
+vivre = "vivre.cli:app"
+
 [tool.poetry.dependencies]
 python = ">=3.11,<3.14"
 requests = "^2.32.4"
