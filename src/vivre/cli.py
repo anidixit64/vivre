@@ -16,6 +16,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from .api import align, read
+from .parser import VivreParser
 
 # Create Typer app and console
 app = typer.Typer(
@@ -25,6 +26,169 @@ app = typer.Typer(
     rich_markup_mode="rich",
 )
 console = Console()
+
+
+@app.command()
+def parse(
+    epub_path: Path = typer.Argument(
+        ...,
+        help="Path to the EPUB file to parse",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+    ),
+    show_content: bool = typer.Option(
+        False,
+        "--show-content",
+        "-c",
+        help="Show chapter content (can be very long)",
+    ),
+    max_chapters: Optional[int] = typer.Option(
+        None,
+        "--max-chapters",
+        "-m",
+        help="Maximum number of chapters to display",
+    ),
+    output: Optional[Path] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path (default: stdout)",
+        file_okay=True,
+        dir_okay=False,
+    ),
+) -> None:
+    """
+    Parse an EPUB file using the VivreParser.
+
+    This command directly uses the parser to extract chapters and metadata
+    from an EPUB file, providing detailed information about the structure.
+
+    Examples:
+        vivre parse book.epub
+        vivre parse book.epub --show-content
+        vivre parse book.epub --max-chapters 5
+        vivre parse book.epub --output parsed.json
+    """
+    try:
+        with console.status("[bold green]Parsing EPUB file..."):
+            parser = VivreParser()
+            chapters = parser.parse_epub(epub_path)
+
+        # Get book metadata
+        book_title = getattr(parser, "_book_title", "Unknown")
+        book_author = getattr(parser, "_book_author", "Unknown")
+        book_language = getattr(parser, "_book_language", "Unknown")
+
+        # Prepare output data
+        output_data: dict = {
+            "file_path": str(epub_path),
+            "book_title": book_title,
+            "book_author": book_author,
+            "book_language": book_language,
+            "chapter_count": len(chapters),
+            "chapters": [],
+        }
+
+        # Process chapters
+        chapters_to_show = chapters
+        if max_chapters is not None:
+            chapters_to_show = chapters[:max_chapters]
+
+        for i, (title, content) in enumerate(chapters_to_show, 1):
+            chapter_data: dict = {
+                "number": i,
+                "title": title,
+                "content_length": len(content),
+                "word_count": len(content.split()),
+                "character_count": len(content),
+            }
+
+            if show_content:
+                chapter_data["content"] = content
+            else:
+                # Show preview
+                preview = content[:200].strip()
+                if len(content) > 200:
+                    preview += "..."
+                chapter_data["content_preview"] = preview
+
+            output_data["chapters"].append(chapter_data)
+
+        # Output the result
+        if output:
+            # Write to file
+            output_json = json.dumps(output_data, indent=2, ensure_ascii=False)
+            output.write_text(output_json, encoding="utf-8")
+            console.print(f"[green]✓[/green] Output written to [bold]{output}[/bold]")
+        else:
+            # Display with Rich formatting
+            # Book information panel
+            book_info = Panel(
+                f"[bold blue]Title:[/bold blue] {book_title}\n"
+                f"[bold blue]Author:[/bold blue] {book_author}\n"
+                f"[bold blue]Language:[/bold blue] {book_language}\n"
+                f"[bold blue]Chapters:[/bold blue] {len(chapters)}",
+                title="[bold green]Book Information[/bold green]",
+                border_style="blue",
+            )
+            console.print(book_info)
+
+            # Chapters table
+            if chapters_to_show:
+                table = Table(title=f"Chapters ({len(chapters_to_show)} shown)")
+                table.add_column("#", style="cyan", justify="right")
+                table.add_column("Title", style="magenta")
+                table.add_column("Words", style="yellow", justify="right")
+                table.add_column("Characters", style="green", justify="right")
+
+                if show_content:
+                    table.add_column("Content", style="white", max_width=60)
+                else:
+                    table.add_column("Preview", style="white", max_width=60)
+
+                for chapter in output_data["chapters"]:
+                    if show_content:
+                        # Truncate content for table display
+                        content = chapter["content"]
+                        if len(content) > 200:
+                            content = content[:200] + "..."
+                        table.add_row(
+                            str(chapter["number"]),
+                            chapter["title"],
+                            str(chapter["word_count"]),
+                            str(chapter["character_count"]),
+                            content,
+                        )
+                    else:
+                        table.add_row(
+                            str(chapter["number"]),
+                            chapter["title"],
+                            str(chapter["word_count"]),
+                            str(chapter["character_count"]),
+                            chapter["content_preview"],
+                        )
+
+                console.print(table)
+
+                if max_chapters and len(chapters) > max_chapters:
+                    remaining = len(chapters) - max_chapters
+                    console.print(
+                        f"[yellow]Note:[/yellow] {remaining} more chapters not shown"
+                    )
+
+            # File information
+            file_info = Panel(
+                f"[bold blue]File:[/bold blue] {epub_path}\n"
+                f"[bold blue]Size:[/bold blue] {epub_path.stat().st_size:,} bytes",
+                title="[bold green]File Information[/bold green]",
+                border_style="green",
+            )
+            console.print(file_info)
+
+    except Exception as e:
+        console.print(f"[red]Error parsing EPUB file:[/red] {e}")
+        raise typer.Exit(1)
 
 
 @app.command()
