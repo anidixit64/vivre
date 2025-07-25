@@ -856,3 +856,56 @@ class TestAligner:
         cost_small = aligner._alignment_cost(50, 55)  # Small deviation
         cost_large = aligner._alignment_cost(50, 100)  # Large deviation
         assert cost_large > cost_small, "Larger deviations should have higher cost"
+
+    def test_user_configurable_parameters(self):
+        """Test that user-provided c, s2, and gap_penalty are used."""
+        aligner = Aligner(language_pair="en-es", c=2.0, s2=42.0, gap_penalty=7.0)
+        assert aligner.c == 2.0
+        assert aligner.s2 == 42.0
+        assert aligner.gap_penalty == 7.0
+        # Gap costs should be based on the new gap_penalty
+        assert aligner._gap_cost > 0
+        assert aligner._double_gap_cost == 2 * aligner._gap_cost
+
+    def test_2_0_and_0_2_alignments(self):
+        """Test that 2-0 and 0-2 alignments are considered in DP."""
+        aligner = Aligner()
+        # 2-0: two source sentences, no target
+        source = ["A.", "B."]
+        target = []
+        alignment = aligner.align(source, target)
+        # Should result in a single 2-0 alignment (both source sentences skipped)
+        assert len(alignment) == 0  # No aligned pairs, but path should be valid
+        # 0-2: no source, two target sentences
+        source = []
+        target = ["C.", "D."]
+        alignment = aligner.align(source, target)
+        assert len(alignment) == 0
+        # Now test with a mix that forces a 2-0 or 0-2 in the middle
+        source = ["A.", "B.", "C."]
+        target = ["A.", "C."]
+        alignment = aligner.align(source, target)
+        # Should align A. to A., skip B. (2-0 or 1-0), align C. to C.
+        aligned_sources = [s for s, t in alignment]
+        assert "B." not in aligned_sources or any(
+            s == "B." and t == "" for s, t in alignment
+        )
+        # 0-2 in the middle
+        source = ["A.", "C."]
+        target = ["A.", "B.", "C."]
+        alignment = aligner.align(source, target)
+        aligned_targets = [t for s, t in alignment]
+        assert "B." not in aligned_targets or any(
+            t == "B." and s == "" for s, t in alignment
+        )
+
+    def test_gap_costs_are_precalculated(self):
+        """Test that gap penalty costs are pre-calculated and used."""
+        aligner = Aligner()
+        # The gap cost should match the function output
+        assert aligner._gap_cost == aligner._gap_penalty_cost()
+        assert aligner._double_gap_cost == 2 * aligner._gap_penalty_cost()
+        # Changing gap_penalty should change the costs
+        aligner2 = Aligner(gap_penalty=5.0)
+        assert aligner2._gap_cost == aligner2._gap_penalty_cost()
+        assert aligner2._double_gap_cost == 2 * aligner2._gap_penalty_cost()

@@ -3,7 +3,7 @@ Text alignment functionality for matching source and target texts.
 """
 
 import math
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import scipy.stats as stats
 
@@ -17,48 +17,41 @@ class Aligner:
     and analysis purposes.
     """
 
-    def __init__(self, language_pair: str = "en-es"):
+    def __init__(
+        self,
+        language_pair: str = "en-es",
+        c: Optional[float] = None,
+        s2: Optional[float] = None,
+        gap_penalty: Optional[float] = None,
+    ):
         """
         Initialize the Aligner with language-specific parameters.
 
         Args:
             language_pair: Language pair code (e.g., "en-es", "en-fr", "en-de").
                           Defaults to "en-es" (English-Spanish).
+            c: Optional mean length ratio override.
+            s2: Optional variance of the difference override.
+            gap_penalty: Optional gap penalty override.
         """
         # Language-specific parameters for the Gale-Church algorithm
-        # These parameters are based on empirical studies of translation length ratios
         self.language_params = {
-            "en-es": {
-                "c": 1.0,  # Mean length ratio (target/source)
-                "s2": 6.8,  # Variance of the difference (not ratio)
-                "gap_penalty": 3.0,  # Gap penalty (in standard deviations)
-            },
-            "en-fr": {
-                "c": 1.1,
-                "s2": 7.2,
-                "gap_penalty": 3.0,
-            },
-            "en-de": {
-                "c": 1.2,
-                "s2": 8.1,
-                "gap_penalty": 3.0,
-            },
-            "en-it": {
-                "c": 1.05,
-                "s2": 7.0,
-                "gap_penalty": 3.0,
-            },
+            "en-es": {"c": 1.0, "s2": 6.8, "gap_penalty": 3.0},
+            "en-fr": {"c": 1.1, "s2": 7.2, "gap_penalty": 3.0},
+            "en-de": {"c": 1.2, "s2": 8.1, "gap_penalty": 3.0},
+            "en-it": {"c": 1.05, "s2": 7.0, "gap_penalty": 3.0},
         }
-
-        # Use default parameters if language pair not found
         self.params = self.language_params.get(
             language_pair, self.language_params["en-es"]
         )
-
-        # Extract parameters for easier access
-        self.c = self.params["c"]  # Mean length ratio
-        self.s2 = self.params["s2"]  # Variance of the difference
-        self.gap_penalty = self.params["gap_penalty"]
+        self.c = c if c is not None else self.params["c"]
+        self.s2 = s2 if s2 is not None else self.params["s2"]
+        self.gap_penalty = (
+            gap_penalty if gap_penalty is not None else self.params["gap_penalty"]
+        )
+        # Pre-calculate gap penalty costs
+        self._gap_cost = self._gap_penalty_cost()
+        self._double_gap_cost = 2 * self._gap_cost
 
     def align(
         self, source_sentences: List[str], target_sentences: List[str]
@@ -146,76 +139,58 @@ class Aligner:
     ) -> List[Tuple[int, int, int, int]]:
         """
         Dynamic programming implementation of Gale-Church algorithm.
-
-        Args:
-            source_lengths: List of source sentence lengths.
-            target_lengths: List of target sentence lengths.
-
-        Returns:
-            List of (src_start, src_end, tgt_start, tgt_end) tuples.
         """
         m, n = len(source_lengths), len(target_lengths)
-
-        # Initialize DP table
-        # dp[i][j] = minimum cost to align source[0:i] with target[0:j]
         dp = [[float("inf")] * (n + 1) for _ in range(m + 1)]
         dp[0][0] = 0
-
-        # Backtracking table to reconstruct alignment
         backtrack: List[List] = [[None] * (n + 1) for _ in range(m + 1)]
-
-        # Fill DP table
         for i in range(m + 1):
             for j in range(n + 1):
                 if i == 0 and j == 0:
                     continue
-
-                # Try different alignment types
                 candidates = []
-
                 # 1-1 alignment
                 if i > 0 and j > 0:
                     cost = self._alignment_cost(
                         source_lengths[i - 1], target_lengths[j - 1]
                     )
                     candidates.append((dp[i - 1][j - 1] + cost, (i - 1, j - 1, 1, 1)))
-
                 # 1-0 alignment (source sentence with no target)
                 if i > 0:
-                    cost = self._gap_penalty_cost()
+                    cost = self._gap_cost
                     candidates.append((dp[i - 1][j] + cost, (i - 1, j, 1, 0)))
-
                 # 0-1 alignment (target sentence with no source)
                 if j > 0:
-                    cost = self._gap_penalty_cost()
+                    cost = self._gap_cost
                     candidates.append((dp[i][j - 1] + cost, (i, j - 1, 0, 1)))
-
                 # 2-1 alignment (two source sentences with one target)
                 if i > 1 and j > 0:
                     src_len = source_lengths[i - 2] + source_lengths[i - 1]
                     cost = self._alignment_cost(src_len, target_lengths[j - 1])
                     candidates.append((dp[i - 2][j - 1] + cost, (i - 2, j - 1, 2, 1)))
-
                 # 1-2 alignment (one source sentence with two target)
                 if i > 0 and j > 1:
                     tgt_len = target_lengths[j - 2] + target_lengths[j - 1]
                     cost = self._alignment_cost(source_lengths[i - 1], tgt_len)
                     candidates.append((dp[i - 1][j - 2] + cost, (i - 1, j - 2, 1, 2)))
-
                 # 2-2 alignment (two source sentences with two target)
                 if i > 1 and j > 1:
                     src_len = source_lengths[i - 2] + source_lengths[i - 1]
                     tgt_len = target_lengths[j - 2] + target_lengths[j - 1]
                     cost = self._alignment_cost(src_len, tgt_len)
                     candidates.append((dp[i - 2][j - 2] + cost, (i - 2, j - 2, 2, 2)))
-
-                # Choose best candidate
+                # 2-0 alignment (two source sentences deleted)
+                if i > 1:
+                    cost = self._double_gap_cost
+                    candidates.append((dp[i - 2][j] + cost, (i - 2, j, 2, 0)))
+                # 0-2 alignment (two target sentences inserted)
+                if j > 1:
+                    cost = self._double_gap_cost
+                    candidates.append((dp[i][j - 2] + cost, (i, j - 2, 0, 2)))
                 if candidates:
                     best_cost, best_move = min(candidates, key=lambda x: x[0])
                     dp[i][j] = best_cost
                     backtrack[i][j] = best_move
-
-        # Reconstruct alignment path
         return self._reconstruct_alignment(backtrack, m, n)
 
     def _alignment_cost(self, src_len: int, tgt_len: int) -> float:
