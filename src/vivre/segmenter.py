@@ -6,7 +6,7 @@ This module provides functionality to segment text into sentences or other units
 
 from typing import List, Optional
 
-import langdetect
+import langdetect  # type: ignore
 import spacy
 from spacy.language import Language
 

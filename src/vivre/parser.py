@@ -24,7 +24,7 @@ import zipfile
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from defusedxml import ElementTree as ET
 
 
@@ -706,12 +706,17 @@ class VivreParser:
                     links = soup.find_all("a")
 
                     for link in links:
-                        href_attr = link.get("href")
-                        if href_attr and link.get_text().strip():
-                            title = link.get_text().strip()
-                            # Clean up href (remove anchor if present)
-                            href = href_attr.split("#")[0]
-                            chapter_titles[href] = title
+                        if isinstance(link, Tag):
+                            href_attr = link.get("href")
+                            if (
+                                href_attr
+                                and isinstance(href_attr, str)
+                                and link.get_text().strip()
+                            ):
+                                title = link.get_text().strip()
+                                # Clean up href (remove anchor if present)
+                                href = href_attr.split("#")[0]
+                                chapter_titles[href] = title
 
             except Exception as e:
                 print(
@@ -760,7 +765,7 @@ class VivreParser:
 
         return chapter_titles
 
-    def _extract_text(self, soup: BeautifulSoup) -> str:
+    def _extract_text(self, soup: Union[BeautifulSoup, Tag]) -> str:
         """
         Extract all text content from BeautifulSoup object with paragraph structure.
 
@@ -775,7 +780,7 @@ class VivreParser:
         """
         # Focus on body content if available
         body = soup.find("body")
-        if body is not None:
+        if body is not None and isinstance(body, Tag):
             soup = body
 
         # Extract text from block-level elements to preserve paragraph structure

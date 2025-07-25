@@ -1268,6 +1268,24 @@ files = [
 ]
 
 [[package]]
+name = "optype"
+version = "0.12.2"
+description = "Building blocks for precise & flexible type hints"
+optional = false
+python-versions = ">=3.11"
+groups = ["dev"]
+files = [
+    {file = "optype-0.12.2-py3-none-any.whl", hash = "sha256:e38966fcd5ae9dec1c1bdecccdd8fdc7cfb8f21686f45ce3669a3a566c7cc110"},
+    {file = "optype-0.12.2.tar.gz", hash = "sha256:3f53a89f56f0ea23be4d212611dce0f3a2a8946543a9a72783e349c49b232934"},
+]
+
+[package.dependencies]
+typing-extensions = {version = ">=4.10", markers = "python_full_version < \"3.13.0\""}
+
+[package.extras]
+numpy = ["numpy (>=1.25)"]
+
+[[package]]
 name = "packaging"
 version = "25.0"
 description = "Core utilities for Python packages"
@@ -2018,6 +2036,24 @@ doc = ["intersphinx_registry", "jupyterlite-pyodide-kernel", "jupyterlite-sphinx
 test = ["Cython", "array-api-strict (>=2.3.1)", "asv", "gmpy2", "hypothesis (>=6.30)", "meson", "mpmath", "ninja ; sys_platform != \"emscripten\"", "pooch", "pytest", "pytest-cov", "pytest-timeout", "pytest-xdist", "scikit-umfpack", "threadpoolctl"]
 
 [[package]]
+name = "scipy-stubs"
+version = "1.16.0.2"
+description = "Type annotations for SciPy"
+optional = false
+python-versions = ">=3.11"
+groups = ["dev"]
+files = [
+    {file = "scipy_stubs-1.16.0.2-py3-none-any.whl", hash = "sha256:dc364d24a3accd1663e7576480bdb720533f94de8a05590354ff6d4a83d765c7"},
+    {file = "scipy_stubs-1.16.0.2.tar.gz", hash = "sha256:f83aacaf2e899d044de6483e6112bf7a1942d683304077bc9e78cf6f21353acd"},
+]
+
+[package.dependencies]
+optype = ">=0.10.0,<1"
+
+[package.extras]
+scipy = ["scipy (>=1.16.0,<1.17)"]
+
+[[package]]
 name = "setuptools"
 version = "80.9.0"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
@@ -2616,4 +2652,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.14"
-content-hash = "77791c1e4f35bb140d8741a1a462d708a3eda75e3138f5530cd83dbd533dcb77"
+content-hash = "6e57f36a086997b0256bd9adc7409eb2cb580ba58096130b2e905554c5a73978"

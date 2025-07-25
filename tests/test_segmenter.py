@@ -711,7 +711,7 @@ class TestSegmenter:
         """Test that langdetect is properly integrated and working."""
         from unittest.mock import patch
 
-        import langdetect
+        import langdetect  # type: ignore
 
         from vivre.segmenter import Segmenter
 
