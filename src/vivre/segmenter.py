@@ -4,9 +4,9 @@ Text segmentation module for the vivre library.
 This module provides functionality to segment text into sentences or other units.
 """
 
-import re
 from typing import List, Optional
 
+import langdetect  # type: ignore
 import spacy
 from spacy.language import Language
 
@@ -17,11 +17,19 @@ class Segmenter:
 
     This class provides methods to segment text into meaningful units
     using language detection and spaCy's sentence tokenization.
+
+    Note: Some languages (Arabic, Hindi, Thai) use a general-purpose multilingual
+    model (xx_ent_wiki_sm) which may provide lower segmentation accuracy compared
+    to dedicated language models. For higher accuracy with these languages, consider
+    using larger (_lg) or transformer (_trf) spaCy models if available.
     """
 
     def __init__(self) -> None:
         """Initialize the Segmenter instance."""
         self._models: dict[str, Language] = {}
+        self._model_names: dict[str, str] = (
+            {}
+        )  # Track which model is loaded for each language
         self._supported_languages = {
             "en": "en_core_web_sm",
             "es": "es_core_news_sm",
@@ -42,7 +50,7 @@ class Segmenter:
 
     def _detect_language(self, text: str) -> str:
         """
-        Detect the language of the given text.
+        Detect the language of the given text using langdetect.
 
         Args:
             text: The text to detect language for.
@@ -50,41 +58,36 @@ class Segmenter:
         Returns:
             Language code (e.g., 'en', 'es', 'fr').
         """
-        # Simple language detection based on character sets and common patterns
-        # This is a basic implementation - in production, you might want to use
-        # a more sophisticated language detection library like langdetect
+        try:
+            # Use langdetect for robust language detection
+            detected_lang = langdetect.detect(text)
 
-        # Check for specific language indicators
-        if re.search(r"[а-яё]", text, re.IGNORECASE):
-            return "ru"
-        elif re.search(r"[一-龯]", text):
-            return "zh"
-        elif re.search(r"[あ-んア-ン]", text):
-            return "ja"
-        elif re.search(r"[가-힣]", text):
-            return "ko"
-        elif re.search(r"[ا-ي]", text):
-            return "ar"
-        elif re.search(r"[ก-๙]", text):
-            return "th"
-        elif re.search(r"[àâäéèêëïîôöùûüÿç]", text, re.IGNORECASE):
-            return "fr"
-        elif re.search(r"[ñáéíóúü¿¡]", text, re.IGNORECASE):
-            return "es"
-        elif re.search(r"[äöüß]", text, re.IGNORECASE):
-            return "de"
-        elif re.search(r"[àèéìíîòóù]", text, re.IGNORECASE):
-            return "it"
-        elif re.search(r"[ãâáàçéêíóôõú]", text, re.IGNORECASE):
-            return "pt"
-        elif re.search(r"[àáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿ]", text, re.IGNORECASE):
-            return "nl"
-        elif re.search(r"[ąćęłńóśźż]", text, re.IGNORECASE):
-            return "pl"
-        elif re.search(r"[क-ह]", text):
-            return "hi"
-        else:
-            # Default to English for Latin script
+            # Validate that the detected language is supported
+            if detected_lang in self._supported_languages:
+                return detected_lang
+
+            # If detected language is not supported, try to map to supported language
+            # Handle common language code variations
+            lang_mapping = {
+                "zh-cn": "zh",  # Chinese (Simplified)
+                "zh-tw": "zh",  # Chinese (Traditional)
+                "zh-hans": "zh",  # Chinese (Simplified)
+                "zh-hant": "zh",  # Chinese (Traditional)
+                "ja-jp": "ja",  # Japanese
+                "ko-kr": "ko",  # Korean
+                "ar-sa": "ar",  # Arabic (Saudi Arabia)
+                "hi-in": "hi",  # Hindi (India)
+                "th-th": "th",  # Thai (Thailand)
+            }
+
+            if detected_lang in lang_mapping:
+                return lang_mapping[detected_lang]
+
+            # Default to English for unsupported languages
+            return "en"
+
+        except (langdetect.LangDetectException, Exception):
+            # Fallback to English if language detection fails
             return "en"
 
     def _load_model(self, lang_code: str) -> Language:
@@ -103,17 +106,40 @@ class Segmenter:
         if lang_code not in self._supported_languages:
             raise ValueError(f"Unsupported language: {lang_code}")
 
-        if lang_code not in self._models:
-            model_name = self._supported_languages[lang_code]
-            try:
-                self._models[lang_code] = spacy.load(model_name)
-            except OSError:
-                raise OSError(
-                    f"spaCy model '{model_name}' not found. "
-                    f"Install it with: python -m spacy download {model_name}"
-                )
+        model_name = self._supported_languages[lang_code]
 
-        return self._models[lang_code]
+        # Check if this specific model is already loaded
+        if model_name in self._models:
+            # Model is already loaded, just update the mapping
+            self._model_names[lang_code] = model_name
+            return self._models[model_name]
+
+        # Check if we already have a model loaded for this language
+        if lang_code in self._models:
+            return self._models[lang_code]
+
+        # Load the model with only necessary components for sentence segmentation
+        try:
+            # Disable unnecessary components to improve performance
+            # We only need the sentence segmenter (senter), not tagger, parser, NER,
+            # etc.
+            model = spacy.load(
+                model_name,
+                disable=["tagger", "parser", "ner", "lemmatizer", "attribute_ruler"],
+            )
+
+            # Add sentencizer if it's not already in the pipeline
+            if "sentencizer" not in model.pipe_names:
+                model.add_pipe("sentencizer")
+
+            self._models[model_name] = model
+            self._model_names[lang_code] = model_name
+            return model
+        except OSError:
+            raise OSError(
+                f"spaCy model '{model_name}' not found. "
+                f"Install it with: python -m spacy download {model_name}"
+            )
 
     def segment(self, text: str, language: Optional[str] = None) -> List[str]:
         """
@@ -122,7 +148,9 @@ class Segmenter:
         Args:
             text: The text to segment.
             language: Optional language code (e.g., 'en', 'es', 'fr').
-                     If not provided, language will be auto-detected.
+                     If provided, this language will be used without question.
+                     If None, language will be auto-detected using langdetect.
+                     User override takes precedence for maximum accuracy.
 
         Returns:
             List of sentence segments.
@@ -134,12 +162,18 @@ class Segmenter:
         if text is None or not text or not text.strip():
             return []
 
-        # Detect language if not provided
-        if language is None:
-            language = self._detect_language(text)
+        # Use user-provided language if available, otherwise auto-detect
+        if language is not None:
+            # Validate user-provided language
+            if not self.is_language_supported(language):
+                raise ValueError(f"Unsupported language: {language}")
+            detected_language = language
+        else:
+            # Auto-detect language as fallback
+            detected_language = self._detect_language(text)
 
         # Load the appropriate spaCy model
-        nlp = self._load_model(language)
+        nlp = self._load_model(detected_language)
 
         # Process the text with spaCy
         doc = nlp(text.strip())
@@ -153,9 +187,67 @@ class Segmenter:
 
         return sentences
 
+    def segment_batch(
+        self, texts: List[str], language: Optional[str] = None
+    ) -> List[List[str]]:
+        """
+        Segment multiple texts into sentences using spaCy's optimized batch processing.
+
+        This method uses spaCy's pipe() method for efficient batch processing,
+        making better use of multi-core CPUs and improving performance
+        significantly for bulk tasks.
+
+        Args:
+            texts: List of texts to segment.
+            language: Optional language code (e.g., 'en', 'es', 'fr').
+                     If provided, this language will be used for all texts.
+                     If None, language will be auto-detected for each text.
+                     User override takes precedence for maximum accuracy.
+
+        Returns:
+            List of sentence segments for each input text.
+
+        Raises:
+            OSError: If the required spaCy model is not installed.
+            ValueError: If the language is not supported.
+        """
+        if not texts:
+            return []
+
+        # Use user-provided language if available, otherwise auto-detect
+        if language is not None:
+            # Validate user-provided language
+            if not self.is_language_supported(language):
+                raise ValueError(f"Unsupported language: {language}")
+            detected_language = language
+        else:
+            # Auto-detect language for the first text as fallback
+            # Note: For mixed-language batches, consider processing separately
+            detected_language = self._detect_language(texts[0])
+
+        # Load the appropriate spaCy model
+        nlp = self._load_model(detected_language)
+
+        # Process texts in batch using spaCy's optimized pipe method
+        results = []
+        for doc in nlp.pipe([text.strip() for text in texts if text and text.strip()]):
+            sentences = []
+            for sent in doc.sents:
+                sentence_text = sent.text.strip()
+                if sentence_text:
+                    sentences.append(sentence_text)
+            results.append(sentences)
+
+        return results
+
     def get_supported_languages(self) -> List[str]:
         """
         Get list of supported language codes.
+
+        Note: Some languages (Arabic, Hindi, Thai) use a general-purpose multilingual
+        model (xx_ent_wiki_sm) which may provide lower segmentation accuracy compared
+        to dedicated language models. For higher accuracy with these languages, consider
+        using larger (_lg) or transformer (_trf) spaCy models if available.
 
         Returns:
             List of supported language codes.

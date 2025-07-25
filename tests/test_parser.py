@@ -1096,27 +1096,267 @@ class TestParser:
                 assert text.startswith("Jack abrió los ojos")
 
     def test_extract_title_fallback_without_chapter_pattern(self):
-        """Test title extraction fallback without chapter number patterns."""
-        from unittest.mock import patch
+        """Test title extraction fallback when no chapter pattern is found."""
+        from vivre.parser import VivreParser
+
+        parser = VivreParser()
+
+        # Test with content that has no chapter pattern
+        content = b"""
+        <html>
+        <head><title>Some Title</title></head>
+        <body>
+        <p>This is some content without a chapter pattern.</p>
+        <p>It should still extract a title from the title tag.</p>
+        </body>
+        </html>
+        """
+
+        title, text = parser._extract_chapter_content(content)
+        assert title == "Some Title"
+        assert "This is some content without a chapter pattern" in text
+
+    def test_beautifulsoup_malformed_html_handling(self):
+        """Test that BeautifulSoup handles malformed HTML gracefully."""
+        from vivre.parser import VivreParser
+
+        parser = VivreParser()
+
+        # Test with severely malformed HTML that would break XML parsing
+        malformed_content = b"""
+        <html>
+        <head><title>Chapter 1</title></head>
+        <body>
+        <h1>Chapter 1: The Beginning</h1>
+        <p>This is the first paragraph.
+        <p>This paragraph has no closing tag.
+        <div>This div is not closed either
+        <h2>Subheading</h2>
+        <p>More content here.</p>
+        </body>
+        </html>
+        """
+
+        # This should not raise an exception and should extract content
+        title, text = parser._extract_chapter_content(malformed_content)
+
+        # Should extract title from h1
+        assert "Chapter 1: The Beginning" in title
+        assert title != "Untitled Chapter"
+
+        # Should extract text content despite malformed HTML
+        assert "This is the first paragraph" in text
+        assert "This paragraph has no closing tag" in text
+        assert "More content here" in text
+
+    def test_beautifulsoup_vs_xml_parsing(self):
+        """Test that BeautifulSoup handles content that would break XML parsing."""
+        from vivre.parser import VivreParser
+
+        parser = VivreParser()
+
+        # Content with unclosed tags and invalid XML that would break ElementTree
+        problematic_content = b"""
+        <html>
+        <head><title>Test Chapter</title></head>
+        <body>
+        <h1>Test Chapter</h1>
+        <p>This content has <b>unclosed tags and <i>nested unclosed tags
+        <p>Another paragraph with <a href="http://example.com">unclosed link
+        <div>Unclosed div with <span>unclosed span
+        <p>Final paragraph.</p>
+        </body>
+        </html>
+        """
+
+        # This should work with BeautifulSoup but would fail with ElementTree
+        title, text = parser._extract_chapter_content(problematic_content)
+
+        # Should extract title
+        assert title == "Test Chapter"
+
+        # Should extract text content despite malformed HTML
+        assert "This content has" in text
+        assert "unclosed tags" in text
+        assert "Another paragraph" in text
+        assert "Final paragraph" in text
+
+    def test_epub_standards_toc_discovery(self):
+        """Test EPUB standards-compliant table of contents discovery."""
+        from unittest.mock import MagicMock, patch
 
         from vivre.parser import VivreParser
 
         parser = VivreParser()
 
-        content = """
+        # Mock content.opf with EPUB3 navigation document
+        mock_content_opf = b"""<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0">
+    <metadata>
+        <dc:title>Test Book</dc:title>
+        <dc:language>en</dc:language>
+    </metadata>
+    <manifest>
+        <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+        <item id="chapter1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
+    </manifest>
+    <spine>
+        <itemref idref="chapter1"/>
+    </spine>
+</package>"""
+
+        # Mock navigation document content
+        mock_nav_content = b"""
+        <?xml version="1.0" encoding="UTF-8"?>
+        <html xmlns="http://www.w3.org/1999/xhtml">
+            <body>
+                <nav>
+                    <ol>
+                        <li><a href="chapter1.xhtml">Chapter 1: The Beginning</a></li>
+                    </ol>
+                </nav>
+            </body>
+        </html>
+        """
+
+        with patch("zipfile.ZipFile") as mock_zip:
+            mock_zip_instance = MagicMock()
+            mock_zip.return_value.__enter__.return_value = mock_zip_instance
+            mock_zip_instance.read.side_effect = lambda path: {
+                "META-INF/container.xml": b'<container><rootfiles><rootfile full-path="content.opf"/></rootfiles></container>',
+                "content.opf": mock_content_opf,
+                "nav.xhtml": mock_nav_content,
+            }.get(path, b"")
+
+            # Test EPUB3 navigation discovery
+            nav_path = parser._find_navigation_document(
+                mock_content_opf, mock_zip_instance, Path(".")
+            )
+            assert nav_path == "nav.xhtml"
+
+        # Test EPUB2 fallback
+        mock_content_opf_epub2 = b"""<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
+    <manifest>
+        <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+    </manifest>
+    <spine toc="ncx">
+        <itemref idref="chapter1"/>
+    </spine>
+</package>"""
+
+        with patch("zipfile.ZipFile") as mock_zip:
+            mock_zip_instance = MagicMock()
+            mock_zip.return_value.__enter__.return_value = mock_zip_instance
+            mock_zip_instance.read.side_effect = lambda path: {
+                "META-INF/container.xml": b'<container><rootfiles><rootfile full-path="content.opf"/></rootfiles></container>',
+                "content.opf": mock_content_opf_epub2,
+            }.get(path, b"")
+
+            # Test EPUB2 NCX discovery
+            nav_path = parser._find_navigation_document(
+                mock_content_opf_epub2, mock_zip_instance, Path(".")
+            )
+            assert nav_path == "toc.ncx"
+
+    def test_multilingual_content_filtering(self):
+        """Test multilingual non-story content filtering."""
+        from vivre.parser import VivreParser
+
+        parser = VivreParser()
+
+        # Test English filtering
+        parser._book_language = "en"
+        assert parser._is_non_story_content("Copyright Page", "copyright.xhtml")
+        assert not parser._is_non_story_content("Chapter 1", "chapter1.xhtml")
+
+        # Test Spanish filtering
+        parser._book_language = "es"
+        assert parser._is_non_story_content("Derechos de Autor", "copyright.xhtml")
+        assert not parser._is_non_story_content("Capítulo 1", "chapter1.xhtml")
+
+        # Test French filtering
+        parser._book_language = "fr"
+        assert parser._is_non_story_content("Droits d'Auteur", "copyright.xhtml")
+        assert not parser._is_non_story_content("Chapitre 1", "chapter1.xhtml")
+
+        # Test fallback to English for unsupported language
+        parser._book_language = "xx"
+        assert parser._is_non_story_content("Copyright Page", "copyright.xhtml")
+
+    def test_metadata_extraction(self):
+        """Test metadata extraction from content.opf."""
+        from vivre.parser import VivreParser
+
+        parser = VivreParser()
+
+        # Test metadata extraction
+        mock_content_opf = b"""<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0">
+    <metadata>
+        <dc:title>Test Book Title</dc:title>
+        <dc:language>es</dc:language>
+    </metadata>
+</package>"""
+
+        parser._extract_metadata(mock_content_opf)
+        assert parser._book_title == "Test Book Title"
+        assert parser._book_language == "es"
+
+        # Test language code mapping
+        mock_content_opf_fr = b"""<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0">
+    <metadata>
+        <dc:title>Livre de Test</dc:title>
+        <dc:language>fra</dc:language>
+    </metadata>
+</package>"""
+
+        parser._extract_metadata(mock_content_opf_fr)
+        assert parser._book_title == "Livre de Test"
+        assert parser._book_language == "fr"
+
+    def test_paragraph_structure_preservation(self):
+        """Test that paragraph structure is preserved in text extraction."""
+        from vivre.parser import VivreParser
+
+        parser = VivreParser()
+
+        # Content with multiple paragraphs
+        content = b"""
         <html>
+        <head><title>Test Chapter</title></head>
         <body>
-        Jack abrió los ojos y se acomodó los lentes.
+        <h1>Test Chapter</h1>
+        <p>This is the first paragraph.</p>
+        <p>This is the second paragraph.</p>
+        <div>This is a div block.</div>
+        <p>This is the third paragraph.</p>
         </body>
         </html>
         """
 
-        # Mock the XML parsing to fail and trigger fallback
-        with patch.object(parser, "_extract_title", return_value="Untitled Chapter"):
-            with patch.object(
-                parser, "_extract_text", return_value="Jack abrió los ojos"
-            ):
-                title, text = parser._extract_chapter_content(content.encode("utf-8"))
-                # Should remain "Untitled Chapter" if no pattern found
-                assert title == "Untitled Chapter"
-                assert text == "Jack abrió los ojos"
+        title, text = parser._extract_chapter_content(content)
+
+        # Should extract title
+        assert title == "Test Chapter"
+
+        # Should preserve paragraph structure with double newlines
+        assert "This is the first paragraph." in text
+        assert "This is the second paragraph." in text
+        assert "This is a div block." in text
+        assert "This is the third paragraph." in text
+
+        # Should preserve paragraph structure (check that paragraphs are separated)
+        # The text should have some structure, not be completely flattened
+        assert len(text.split()) > 4  # Should have multiple words
+        # Check that the text contains all expected content
+        assert all(
+            phrase in text
+            for phrase in [
+                "This is the first paragraph",
+                "This is the second paragraph",
+                "This is a div block",
+                "This is the third paragraph",
+            ]
+        )

@@ -22,8 +22,9 @@ import os
 import re
 import zipfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
+from bs4 import BeautifulSoup, Tag
 from defusedxml import ElementTree as ET
 
 
@@ -49,6 +50,8 @@ class VivreParser:
     Attributes:
         file_path: Path to the currently loaded EPUB file, if any.
         _is_loaded: Boolean indicating whether an EPUB file is currently loaded.
+        _book_title: The book title extracted from metadata.
+        _book_language: The book language extracted from metadata.
 
     Example:
         >>> parser = VivreParser()
@@ -58,10 +61,189 @@ class VivreParser:
         ...     print(f"Chapter: {title}")
     """
 
+    # Multilingual non-story content keywords
+    NON_STORY_KEYWORDS = {
+        "en": [
+            "cover",
+            "title",
+            "titlepage",
+            "front cover",
+            "back cover",
+            "acknowledgement",
+            "acknowledgments",
+            "acknowledgements",
+            "table of contents",
+            "contents",
+            "toc",
+            "copyright",
+            "legal",
+            "disclaimer",
+            "about the author",
+            "author bio",
+            "biography",
+            "translator",
+            "translation",
+            "translator's note",
+            "preface",
+            "foreword",
+            "introduction",
+            "prologue",
+            "epilogue",
+            "afterword",
+            "appendix",
+            "index",
+            "bibliography",
+            "references",
+            "citations",
+            "notes",
+            "glossary",
+            "credits",
+            "dedication",
+            "colophon",
+        ],
+        "es": [
+            "cubierta",
+            "título",
+            "página de título",
+            "cubierta frontal",
+            "cubierta trasera",
+            "agradecimientos",
+            "reconocimientos",
+            "tabla de contenidos",
+            "contenidos",
+            "índice",
+            "derechos de autor",
+            "copyright",
+            "legal",
+            "descargo de responsabilidad",
+            "sobre el autor",
+            "biografía del autor",
+            "biografía",
+            "traductor",
+            "traducción",
+            "nota del traductor",
+            "prólogo",
+            "prefacio",
+            "introducción",
+            "epílogo",
+            "apéndice",
+            "bibliografía",
+            "referencias",
+            "citas",
+            "notas",
+            "glosario",
+            "créditos",
+            "dedicatoria",
+            "colofón",
+        ],
+        "fr": [
+            "couverture",
+            "titre",
+            "page de titre",
+            "couverture avant",
+            "couverture arrière",
+            "remerciements",
+            "table des matières",
+            "sommaire",
+            "index",
+            "copyright",
+            "droits d'auteur",
+            "légal",
+            "avertissement",
+            "à propos de l'auteur",
+            "biographie de l'auteur",
+            "biographie",
+            "traducteur",
+            "traduction",
+            "note du traducteur",
+            "préface",
+            "avant-propos",
+            "introduction",
+            "épilogue",
+            "appendice",
+            "bibliographie",
+            "références",
+            "citations",
+            "notes",
+            "glossaire",
+            "crédits",
+            "dédicace",
+            "colophon",
+        ],
+        "de": [
+            "umschlag",
+            "titel",
+            "titelseite",
+            "vorderer umschlag",
+            "hinterer umschlag",
+            "danksagung",
+            "danksagungen",
+            "inhaltsverzeichnis",
+            "inhalt",
+            "index",
+            "urheberrecht",
+            "copyright",
+            "rechtlich",
+            "haftungsausschluss",
+            "über den autor",
+            "autorenbiografie",
+            "biografie",
+            "übersetzer",
+            "übersetzung",
+            "übersetzernotiz",
+            "vorwort",
+            "einleitung",
+            "epilog",
+            "anhang",
+            "bibliografie",
+            "referenzen",
+            "zitate",
+            "notizen",
+            "glossar",
+            "credits",
+            "widmung",
+            "kolophon",
+        ],
+        "it": [
+            "copertina",
+            "titolo",
+            "frontespizio",
+            "copertina anteriore",
+            "copertina posteriore",
+            "ringraziamenti",
+            "indice",
+            "contenuti",
+            "copyright",
+            "diritti d'autore",
+            "legale",
+            "disclaimer",
+            "sull'autore",
+            "biografia dell'autore",
+            "biografia",
+            "traduttore",
+            "traduzione",
+            "nota del traduttore",
+            "prefazione",
+            "introduzione",
+            "epilogo",
+            "appendice",
+            "bibliografia",
+            "riferimenti",
+            "citazioni",
+            "note",
+            "glossario",
+            "crediti",
+            "dedica",
+            "colophon",
+        ],
+    }
+
     def __init__(self) -> None:
         """Initialize the VivreParser instance."""
         self.file_path: Optional[Path] = None
         self._is_loaded: bool = False
+        self._book_title: Optional[str] = None
+        self._book_language: str = "en"  # Default to English
 
     def load_epub(self, file_path: Union[str, Path]) -> bool:
         """
@@ -180,7 +362,7 @@ class VivreParser:
                 raise  # Re-raise our specific validation errors
             raise ValueError(f"Error reading EPUB file: {e}")
 
-        # If we get here, the file is valid
+            # If we get here, the file is valid
         self.file_path = file_path
         self._is_loaded = True
         return True
@@ -218,30 +400,7 @@ class VivreParser:
             ValueError: If the file path is invalid, file is not a valid EPUB,
                        or the EPUB structure cannot be parsed.
         """
-        # Validate input path (same validation as load_epub)
-        if file_path is None:
-            raise ValueError("File path cannot be None")
-
-        # Convert to string for validation
-        if isinstance(file_path, (str, Path)):
-            path_str = str(file_path).strip()
-        else:
-            raise ValueError(
-                f"File path must be a string or Path object, "
-                f"not {type(file_path).__name__}"
-            )
-
-        # Check for empty or whitespace-only paths
-        if not path_str:
-            raise ValueError("File path cannot be empty")
-
-        # Check for invalid characters in path
-        invalid_chars = ["\x00", "\n", "\r", "\t"]
-        for char in invalid_chars:
-            if char in path_str:
-                raise ValueError("File path contains invalid characters")
-
-        # Validate the file first
+        # Use load_epub for validation (DRY principle)
         if not self.load_epub(file_path):
             raise ValueError(f"Failed to load EPUB file: {file_path}")
 
@@ -268,11 +427,17 @@ class VivreParser:
                 content_opf = epub_zip.read(content_opf_path)
                 content_root = ET.fromstring(content_opf)
 
+                # Extract metadata (book title and language)
+                self._extract_metadata(content_opf)
+
                 # Get the base directory for the content files
                 content_dir = Path(content_opf_path).parent
 
-                # Step 3: Extract chapter titles from table of contents
-                chapter_titles = self._extract_chapter_titles(epub_zip, content_dir)
+                # Step 3: Extract chapter titles from table of contents using EPUB
+                # standards
+                chapter_titles = self._extract_chapter_titles(
+                    epub_zip, content_dir, content_opf
+                )
 
                 # Find the spine to get the reading order
                 spine_elem = content_root.find(".//{*}spine")
@@ -321,8 +486,12 @@ class VivreParser:
                         if href in chapter_titles:
                             chapter_title = chapter_titles[href]
 
-                        # Skip if still a generic title
-                        if self._is_generic_title(chapter_title):
+                        # Skip if still a generic title (check without soup for basic
+                        # validation)
+                        if (
+                            len(chapter_title.strip()) < 3
+                            or len(chapter_title.split()) > 15
+                        ):
                             continue
 
                         # Skip if text is too short (likely just a title page)
@@ -336,7 +505,8 @@ class VivreParser:
                         chapters.append((chapter_title, chapter_text))
                     except Exception as e:
                         # Skip chapters that can't be parsed
-                        print(f"Warning: Could not parse chapter {href}: {e}")
+                        warning_msg = f"Warning: Could not parse chapter {href}: {e}"
+                        print(warning_msg)
                         continue
 
         except zipfile.BadZipFile:
@@ -350,10 +520,10 @@ class VivreParser:
 
     def _extract_chapter_content(self, chapter_content: bytes) -> Tuple[str, str]:
         """
-        Extract chapter title and text from HTML/XML content.
+        Extract chapter title and text from HTML/XML content using BeautifulSoup.
 
-        This method attempts to parse the chapter content as XML first,
-        falling back to regex-based extraction if XML parsing fails.
+        This method uses BeautifulSoup to robustly parse HTML/XML content,
+        handling malformed HTML that would cause XML parsers to fail.
 
         Args:
             chapter_content: Raw bytes of the chapter file.
@@ -361,124 +531,121 @@ class VivreParser:
         Returns:
             Tuple of (chapter_title, chapter_text).
         """
-        try:
-            # Parse the HTML/XML content
-            root = ET.fromstring(chapter_content)
+        # Decode content and parse with BeautifulSoup
+        content_str = chapter_content.decode("utf-8", errors="ignore")
+        # Use XML parser for EPUB content to avoid warnings
+        soup = BeautifulSoup(content_str, "lxml-xml")
 
-            # Try to find the title in various ways
-            title = self._extract_title(root)
+        # Extract title using BeautifulSoup selectors
+        title = self._extract_title(soup)
 
-            # Extract all text content
-            text = self._extract_text(root)
+        # Extract text using BeautifulSoup's get_text()
+        text = self._extract_text(soup)
 
-            # If we got "Untitled Chapter" but text starts with what looks like a title,
-            # try to extract the title from the beginning of the text
-            if title == "Untitled Chapter" and text.strip():
-                # Look for patterns like "1. Title" or "2. Title" at the beginning
-                # Stop at the first sentence boundary or when we hit the actual content
-                title_match = re.match(
-                    r"^(\d+\.?\s+[^.!?]+?)(?=\s+[A-Z]|$)", text.strip()
-                )
-                if title_match:
-                    title = title_match.group(1).strip()
+        # If we got "Untitled Chapter" but text starts with what looks like a
+        # title,
+        # try to extract the title from the beginning of the text
+        if title == "Untitled Chapter" and text.strip():
+            # Look for patterns like "1. Title" or "2. Title" at the beginning
+            # Stop at the first sentence boundary or when we hit the actual content
+            pattern = r"^(\d+\.?\s+[^.!?]+?)(?=\s+[A-Z]|$)"
+            title_match = re.match(pattern, text.strip())
+            if title_match:
+                title = title_match.group(1).strip()
 
-            # Explicitly remove the title from the text if it appears at the beginning
-            if title and title != "Untitled Chapter":
-                text = self._remove_title_from_text(text, title)
+        # Explicitly remove the title from the text if it appears at the beginning
+        if title and title != "Untitled Chapter":
+            text = self._remove_title_from_text(text, title)
 
-            return title, text
+        return title, text
 
-        except ET.ParseError:
-            # If XML parsing fails, try to extract text using regex
-            content_str = chapter_content.decode("utf-8", errors="ignore")
-            title = self._extract_title_fallback(content_str)
-            text = self._extract_text_fallback(content_str)
-
-            # Explicitly remove the title from the text if it appears at the beginning
-            if title and title != "Untitled Chapter":
-                text = self._remove_title_from_text(text, title)
-
-            return title, text
-
-    def _extract_title(self, root: Any) -> str:
+    def _extract_title(self, soup: BeautifulSoup) -> str:
         """
-        Extract title from XML element using multiple strategies.
+        Extract title from BeautifulSoup object using multiple strategies.
 
         This method tries various selectors to find the chapter title,
         prioritizing more specific selectors over generic ones.
 
         Args:
-            root: The XML root element to search for titles.
+            soup: The BeautifulSoup object to search for titles.
 
         Returns:
             The extracted title, or "Untitled Chapter" if none found.
         """
         # Try different possible title locations in order of preference
         title_selectors = [
-            ".//{*}h1[@class='chapter']",  # Specific chapter headings
-            ".//{*}h1[@id*='chapter']",  # Chapter headings with chapter in ID
-            ".//{*}h1",  # Any h1
-            ".//{*}h2[@class='chapter']",  # Chapter h2 headings
-            ".//{*}h2",  # Any h2
-            ".//{*}h3[@class='chapter']",  # Chapter h3 headings
-            ".//{*}h3",  # Any h3
-            ".//{*}title",  # Title tag
-            ".//{*}head/{*}title",  # Head title
+            "h1.chapter",  # Specific chapter headings
+            "h1[id*='chapter']",  # Chapter headings with chapter in ID
+            "h1",  # Any h1
+            "h2.chapter",  # Chapter h2 headings
+            "h2",  # Any h2
+            "h3.chapter",  # Chapter h3 headings
+            "h3",  # Any h3
+            "title",  # Title tag
+            "head title",  # Head title
         ]
 
         for selector in title_selectors:
-            title_elem = root.find(selector)
-            if title_elem is not None and title_elem.text:
-                title_text = title_elem.text.strip()
+            title_elem = soup.select_one(selector)
+            if title_elem and title_elem.get_text().strip():
+                title_text = title_elem.get_text().strip()
                 # Skip generic titles that are likely not chapter titles
-                if title_text and not self._is_generic_title(title_text):
+                if title_text and not self._is_generic_title(title_text, soup):
                     return title_text
 
         # If no title found, try to get the first meaningful heading text
         for tag in ["h1", "h2", "h3"]:
-            for elem in root.iter():
-                if elem.tag.endswith(tag) and elem.text and elem.text.strip():
-                    title_text = elem.text.strip()
-                    if not self._is_generic_title(title_text):
+            for elem in soup.find_all(tag):
+                if elem.get_text().strip():
+                    title_text = elem.get_text().strip()
+                    if not self._is_generic_title(title_text, soup):
                         return title_text
 
         return "Untitled Chapter"
 
-    def _is_generic_title(self, title: str) -> bool:
+    def _is_generic_title(self, title: str, soup: BeautifulSoup) -> bool:
         """
         Check if a title is generic and likely not a chapter title.
 
-        This method identifies titles that are probably book titles or
-        other generic content rather than specific chapter titles.
+        This method uses content-agnostic rules to identify titles that are
+        probably book titles or other generic content rather than specific
+        chapter titles.
 
         Args:
             title: The title to check.
+            soup: BeautifulSoup object of the chapter content.
 
         Returns:
             True if the title is generic, False otherwise.
         """
         title_lower = title.lower()
 
-        # Generic titles that are likely not chapter titles
-        generic_titles = [
-            "magic tree house",
-            "vacation under the volcano",
-            "vacaciones al pie de un volcán",
-            "percy jackson",
-            "the lightning thief",
-            "el ladrón del rayo",
-        ]
-
-        # Check if title matches any generic title
-        for generic in generic_titles:
-            if generic in title_lower:
-                return True
-
         # Check if title is too short (likely not a chapter title)
         if len(title.strip()) < 3:
             return True
 
-        # Check if title is just the book title repeated
+        # Check if title is excessively long (likely subtitle or publisher info)
+        if len(title.split()) > 15:
+            return True
+
+        # Check if title matches the book title from metadata
+        if self._book_title and title_lower == self._book_title.lower():
+            return True
+
+        # Check if title matches the HTML document title (but allow if it's the
+        # only title found)
+        if soup:
+            head_title = soup.find("title")
+            if head_title and head_title.get_text().strip():
+                doc_title = head_title.get_text().strip().lower()
+                if title_lower == doc_title:
+                    # Only consider it generic if we found other potential titles
+                    other_titles = soup.find_all(["h1", "h2", "h3"])
+                    # More than just the title tag
+                    if len(other_titles) > 1:
+                        return True
+
+        # Check if title is just repeated words (likely not a chapter title)
         words = title_lower.split()
         if len(words) > 1 and words.count(words[0]) > 1:
             return True
@@ -486,204 +653,171 @@ class VivreParser:
         return False
 
     def _extract_chapter_titles(
-        self, epub_zip: zipfile.ZipFile, content_dir: Path
+        self, epub_zip: zipfile.ZipFile, content_dir: Path, content_opf: bytes
     ) -> Dict[str, str]:
         """
-        Extract chapter titles from the table of contents.
+        Extract chapter titles from the table of contents using EPUB standards.
 
-        This method attempts to parse both NCX and HTML table of contents
-        files to build a mapping of chapter file paths to their titles.
+        This method follows the EPUB specification to find and parse the
+        navigation document:
+        - EPUB3: HTML navigation document with properties="nav"
+        - EPUB2: NCX file referenced in spine toc attribute
 
         Args:
             epub_zip: The EPUB zip file.
             content_dir: Base directory for content files.
+            content_opf: Raw bytes of the content.opf file.
 
         Returns:
             Dictionary mapping href to chapter title.
         """
         chapter_titles: Dict[str, str] = {}
 
-        try:
-            # Look for table of contents file
-            toc_files = ["toc.ncx", "OEBPS/toc.ncx", "OEBPS/html/toc.ncx"]
+        # Find navigation document using EPUB standards
+        nav_path = self._find_navigation_document(content_opf, epub_zip, content_dir)
 
-            toc_content = None
-            for toc_file in toc_files:
-                try:
-                    toc_content = epub_zip.read(toc_file)
-                    break
-                except KeyError:
-                    continue
+        if nav_path:
+            try:
+                nav_content = epub_zip.read(nav_path)
 
-            if toc_content:
-                # Parse NCX file for chapter titles
-                toc_root = ET.fromstring(toc_content)
-                nav_points = toc_root.findall(".//{*}navPoint")
+                # Determine if it's HTML (EPUB3) or NCX (EPUB2)
+                if nav_path.lower().endswith(".ncx"):
+                    # Parse NCX file for chapter titles
+                    nav_root = ET.fromstring(nav_content)
+                    nav_points = nav_root.findall(".//{*}navPoint")
 
-                for nav_point in nav_points:
-                    # Get the title
-                    title_elem = nav_point.find(".//{*}text")
-                    if title_elem is not None and title_elem.text:
-                        title = title_elem.text.strip()
+                    for nav_point in nav_points:
+                        # Get the title
+                        title_elem = nav_point.find(".//{*}text")
+                        if title_elem is not None and title_elem.text:
+                            title = title_elem.text.strip()
 
-                        # Get the href
-                        content_elem = nav_point.find(".//{*}content")
-                        if content_elem is not None:
-                            src = content_elem.get("src")
-                            if src:
-                                # Extract the filename from src (remove anchor)
-                                href = src.split("#")[0]
+                            # Get the href
+                            content_elem = nav_point.find(".//{*}content")
+                            if content_elem is not None:
+                                src = content_elem.get("src")
+                                if src:
+                                    # Extract the filename from src (remove anchor)
+                                    href = src.split("#")[0]
+                                    chapter_titles[href] = title
+                else:
+                    # Parse HTML navigation document for chapter links
+                    soup = BeautifulSoup(nav_content, "lxml-xml")
+                    links = soup.find_all("a")
+
+                    for link in links:
+                        if isinstance(link, Tag):
+                            href_attr = link.get("href")
+                            if (
+                                href_attr
+                                and isinstance(href_attr, str)
+                                and link.get_text().strip()
+                            ):
+                                title = link.get_text().strip()
+                                # Clean up href (remove anchor if present)
+                                href = href_attr.split("#")[0]
                                 chapter_titles[href] = title
 
-        except Exception as e:
-            print(f"Warning: Could not extract chapter titles from TOC: {e}")
+            except Exception as e:
+                print(
+                    f"Warning: Could not extract chapter titles from navigation "
+                    f"document: {e}"
+                )
 
-        # If NCX parsing failed, try to find HTML TOC
+        # Fallback to old method if standards-compliant method fails
         if not chapter_titles:
             try:
-                # Look for HTML table of contents
-                toc_html_files = [
-                    "OEBPS/Osbo_9780375894701_epub_toc_r1.htm",
-                    "OEBPS/html/toc.html",
-                    "toc.html",
-                ]
+                # Look for common table of contents files
+                toc_files = ["toc.ncx", "OEBPS/toc.ncx", "OEBPS/html/toc.ncx"]
 
-                for toc_file in toc_html_files:
+                toc_content = None
+                for toc_file in toc_files:
                     try:
                         toc_content = epub_zip.read(toc_file)
                         break
                     except KeyError:
                         continue
-                else:
-                    return chapter_titles
 
-                # Parse HTML TOC for chapter links
-                toc_root = ET.fromstring(toc_content)
-                links = toc_root.findall(".//{*}a")
+                if toc_content:
+                    # Parse NCX file for chapter titles
+                    toc_root = ET.fromstring(toc_content)
+                    nav_points = toc_root.findall(".//{*}navPoint")
 
-                for link in links:
-                    href_attr = link.get("href")
-                    if href_attr is not None and link.text is not None:
-                        title = link.text.strip()
-                        # Clean up href (remove anchor if present)
-                        href = href_attr.split("#")[0]
-                        chapter_titles[href] = title
+                    for nav_point in nav_points:
+                        # Get the title
+                        title_elem = nav_point.find(".//{*}text")
+                        if title_elem is not None and title_elem.text:
+                            title = title_elem.text.strip()
+
+                            # Get the href
+                            content_elem = nav_point.find(".//{*}content")
+                            if content_elem is not None:
+                                src = content_elem.get("src")
+                                if src:
+                                    # Extract the filename from src (remove anchor)
+                                    href = src.split("#")[0]
+                                    chapter_titles[href] = title
 
             except Exception as e:
-                print(f"Warning: Could not extract chapter titles from HTML TOC: {e}")
+                print(
+                    f"Warning: Could not extract chapter titles from fallback TOC: {e}"
+                )
 
         return chapter_titles
 
-    def _extract_text(self, root: Any) -> str:
+    def _extract_text(self, soup: Union[BeautifulSoup, Tag]) -> str:
         """
-        Extract all text content from XML element.
+        Extract all text content from BeautifulSoup object with paragraph structure.
 
-        This method recursively extracts text from all elements,
-        preserving the natural reading order.
+        This method extracts text on a block-level element basis to preserve
+        paragraph breaks, which improves sentence segmentation accuracy.
 
         Args:
-            root: The XML root element to extract text from.
+            soup: The BeautifulSoup object to extract text from.
 
         Returns:
-            Cleaned text content with normalized whitespace.
+            Cleaned text content with preserved paragraph structure.
         """
-        # Get all text from body or root
-        body = root.find(".//{*}body")
-        if body is not None:
-            root = body
+        # Focus on body content if available
+        body = soup.find("body")
+        if body is not None and isinstance(body, Tag):
+            soup = body
 
-        # Extract all text content
-        text_parts: List[str] = []
-        for elem in root.iter():
-            if elem.text and elem.text.strip():
-                text_parts.append(elem.text.strip())
-            if elem.tail and elem.tail.strip():
-                text_parts.append(elem.tail.strip())
+        # Extract text from block-level elements to preserve paragraph structure
+        block_elements = soup.find_all(
+            ["p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "section", "article"]
+        )
 
-        text = " ".join(text_parts)
+        if block_elements:
+            # Extract text from each block element
+            text_blocks = []
+            for element in block_elements:
+                text = element.get_text(separator=" ", strip=True)
+                if text:
+                    text_blocks.append(text)
 
-        # Clean up the text
+            # Join blocks with double newlines to preserve paragraph breaks
+            text = "\n\n".join(text_blocks)
+        else:
+            # Fallback to simple text extraction if no block elements found
+            text = soup.get_text(separator=" ", strip=True)
+
+        # Clean up the text while preserving paragraph breaks
         text = re.sub(
-            r"\s+", " ", text
-        )  # Replace multiple whitespace with single space
+            r"\n\s*\n\s*\n+", "\n\n", text
+        )  # Normalize multiple paragraph breaks
+        text = re.sub(r"[ \t]+", " ", text)  # Normalize whitespace within lines
         text = text.strip()
 
         return text
-
-    def _extract_title_fallback(self, content: str) -> str:
-        """
-        Fallback title extraction using regex patterns.
-
-        This method is used when XML parsing fails and attempts to
-        extract titles using regular expressions.
-
-        Args:
-            content: The HTML content as a string.
-
-        Returns:
-            The extracted title, or "Untitled Chapter" if none found.
-        """
-        # Look for title tags
-        title_match = re.search(
-            r"<title[^>]*>(.*?)</title>", content, re.IGNORECASE | re.DOTALL
-        )
-        if title_match:
-            title_text = title_match.group(1).strip()
-            if not self._is_generic_title(title_text):
-                return title_text
-
-        # Look for h1 tags
-        h1_match = re.search(r"<h1[^>]*>(.*?)</h1>", content, re.IGNORECASE | re.DOTALL)
-        if h1_match:
-            title_text = h1_match.group(1).strip()
-            if not self._is_generic_title(title_text):
-                return title_text
-
-        # Look for h2 tags
-        h2_match = re.search(r"<h2[^>]*>(.*?)</h2>", content, re.IGNORECASE | re.DOTALL)
-        if h2_match:
-            title_text = h2_match.group(1).strip()
-            if not self._is_generic_title(title_text):
-                return title_text
-
-        return "Untitled Chapter"
-
-    def _extract_text_fallback(self, content: str) -> str:
-        """
-        Fallback text extraction using regex patterns.
-
-        This method is used when XML parsing fails and attempts to
-        extract text by removing HTML tags.
-
-        Args:
-            content: The HTML content as a string.
-
-        Returns:
-            Cleaned text content with HTML tags removed.
-        """
-        # Remove HTML tags and extract text
-        # First remove script and style tags
-        content = re.sub(
-            r"<script[^>]*>.*?</script>", "", content, flags=re.IGNORECASE | re.DOTALL
-        )
-        content = re.sub(
-            r"<style[^>]*>.*?</style>", "", content, flags=re.IGNORECASE | re.DOTALL
-        )
-
-        # Remove HTML tags
-        content = re.sub(r"<[^>]+>", "", content)
-
-        # Clean up whitespace
-        content = re.sub(r"\s+", " ", content)
-
-        return content.strip()
 
     def _is_non_story_content(self, title: str, href: str) -> bool:
         """
         Check if content should be filtered out as non-story content.
 
         This method identifies various types of non-story content that
-        should be excluded from the final chapter list.
+        should be excluded from the final chapter list, using multilingual
+        keyword lists based on the book's language.
 
         Args:
             title: The chapter title.
@@ -692,48 +826,14 @@ class VivreParser:
         Returns:
             True if the content should be filtered out, False otherwise.
         """
+        # Get the appropriate keyword list for the book's language
+        keywords = self.NON_STORY_KEYWORDS.get(
+            self._book_language, self.NON_STORY_KEYWORDS["en"]
+        )
+
         # Check title for common non-story content indicators
         title_lower = title.lower()
-        non_story_keywords = [
-            "cover",
-            "title",
-            "titlepage",
-            "front cover",
-            "back cover",
-            "acknowledgement",
-            "acknowledgments",
-            "acknowledgements",
-            "table of contents",
-            "contents",
-            "toc",
-            "copyright",
-            "legal",
-            "disclaimer",
-            "about the author",
-            "author bio",
-            "biography",
-            "translator",
-            "translation",
-            "translator's note",
-            "preface",
-            "foreword",
-            "introduction",
-            "prologue",
-            "epilogue",
-            "afterword",
-            "appendix",
-            "index",
-            "bibliography",
-            "references",
-            "citations",
-            "notes",
-            "glossary",
-            "credits",
-            "dedication",
-            "colophon",
-        ]
-
-        if any(keyword in title_lower for keyword in non_story_keywords):
+        if any(keyword in title_lower for keyword in keywords):
             return True
 
         # Check href for common non-story file patterns
@@ -790,6 +890,106 @@ class VivreParser:
             return True
 
         return False
+
+    def _extract_metadata(self, content_opf: bytes) -> None:
+        """
+        Extract book metadata from content.opf file.
+
+        Args:
+            content_opf: Raw bytes of the content.opf file.
+        """
+        try:
+            root = ET.fromstring(content_opf)
+
+            # Extract book title from dc:title
+            title_elem = root.find(".//{*}title")
+            if title_elem is not None and title_elem.text:
+                self._book_title = title_elem.text.strip()
+
+            # Extract language from dc:language
+            lang_elem = root.find(".//{*}language")
+            if lang_elem is not None and lang_elem.text:
+                lang_code = lang_elem.text.strip().lower()
+                # Map language codes to our supported languages
+                lang_mapping = {
+                    "en": "en",
+                    "eng": "en",
+                    "english": "en",
+                    "es": "es",
+                    "spa": "es",
+                    "spanish": "es",
+                    "español": "es",
+                    "fr": "fr",
+                    "fra": "fr",
+                    "french": "fr",
+                    "français": "fr",
+                    "de": "de",
+                    "ger": "de",
+                    "german": "de",
+                    "deutsch": "de",
+                    "it": "it",
+                    "ita": "it",
+                    "italian": "it",
+                    "italiano": "it",
+                }
+                self._book_language = lang_mapping.get(lang_code, "en")
+
+        except Exception as e:
+            print(f"Warning: Could not extract metadata: {e}")
+
+    def _find_navigation_document(
+        self, content_opf: bytes, epub_zip: zipfile.ZipFile, content_dir: Path
+    ) -> Optional[str]:
+        """
+        Find the navigation document using EPUB standards.
+
+        This method implements the EPUB specification for finding the table of contents:
+        - EPUB3: Look for item with properties="nav" in manifest
+        - EPUB2: Look for spine toc attribute and find corresponding NCX file
+
+        Args:
+            content_opf: Raw bytes of the content.opf file.
+            epub_zip: The EPUB zip file.
+            content_dir: Base directory for content files.
+
+        Returns:
+            Path to the navigation document, or None if not found.
+        """
+        try:
+            root = ET.fromstring(content_opf)
+
+            # EPUB3: Look for navigation document with properties="nav"
+            manifest = root.find(".//{*}manifest")
+            if manifest is not None:
+                for item in manifest.findall(".//{*}item"):
+                    properties = item.get("properties")
+                    if properties and "nav" in properties.split():
+                        href = item.get("href")
+                        if href:
+                            # Resolve relative path
+                            nav_path = content_dir / href
+                            return str(nav_path)
+
+            # EPUB2: Look for NCX file referenced in spine
+            spine = root.find(".//{*}spine")
+            if spine is not None:
+                toc_id = spine.get("toc")
+                if toc_id:
+                    # Find the item with this ID in manifest
+                    if manifest is not None:
+                        for item in manifest.findall(".//{*}item"):
+                            if item.get("id") == toc_id:
+                                href = item.get("href")
+                                if href:
+                                    # Resolve relative path
+                                    nav_path = content_dir / href
+                                    return str(nav_path)
+
+            return None
+
+        except Exception as e:
+            print(f"Warning: Could not find navigation document: {e}")
+            return None
 
     def _remove_title_from_text(self, text: str, title: str) -> str:
         """
