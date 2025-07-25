@@ -1,263 +1,327 @@
 """
-Integration tests for the full vivre pipeline.
-
-This module contains tests that verify the complete workflow from EPUB parsing
-through sentence segmentation to text alignment, ensuring all components work
-together correctly.
+Tests for the integration module.
 """
 
 from pathlib import Path
 
 import pytest
 
-from vivre.align import Aligner
-from vivre.parser import VivreParser
-from vivre.segmenter import Segmenter
+from vivre.integration import VivrePipeline, create_pipeline
 
 
-class TestFullPipeline:
-    """Test the complete vivre pipeline from parsing to alignment."""
+class TestVivrePipeline:
+    """Test the VivrePipeline class."""
 
-    def test_english_spanish_pipeline_integration(
-        self, english_epub_path: str, spanish_epub_path: str
-    ) -> None:
-        """
-        Test complete pipeline: parse EPUBs -> segment chapters -> align sentences.
+    def test_pipeline_initialization(self):
+        """Test pipeline initialization with default parameters."""
+        pipeline = VivrePipeline()
 
-        This test verifies that the full workflow works correctly:
-        1. Parse English and Spanish EPUB files
-        2. Extract first chapters from both
-        3. Segment chapters into sentences
-        4. Align sentences between languages
+        assert pipeline.language_pair == "en-es"
+        assert hasattr(pipeline, "parser")
+        assert hasattr(pipeline, "segmenter")
+        assert hasattr(pipeline, "aligner")
 
-        Args:
-            english_epub_path: Path to English EPUB test file
-            spanish_epub_path: Path to Spanish EPUB test file
+    def test_pipeline_initialization_custom_language(self):
+        """Test pipeline initialization with custom language pair."""
+        pipeline = VivrePipeline("en-fr")
 
-        Raises:
-            AssertionError: If any step in the pipeline fails
-        """
-        # Initialize components
-        parser = VivreParser()
-        segmenter = Segmenter()
-        aligner = Aligner(language_pair="en-es")
+        assert pipeline.language_pair == "en-fr"
 
-        # Step 1: Parse both EPUB files
-        english_chapters = parser.parse_epub(english_epub_path)
-        spanish_chapters = parser.parse_epub(spanish_epub_path)
+    def test_pipeline_initialization_custom_parameters(self):
+        """Test pipeline initialization with custom alignment parameters."""
+        pipeline = VivrePipeline("en-es", c=1.1, s2=7.0, gap_penalty=2.5)
 
-        # Verify we got chapters from both files
-        assert len(english_chapters) > 0, "Should extract chapters from English EPUB"
-        assert len(spanish_chapters) > 0, "Should extract chapters from Spanish EPUB"
+        assert pipeline.language_pair == "en-es"
+        assert pipeline.aligner.c == 1.1
+        assert pipeline.aligner.s2 == 7.0
+        assert pipeline.aligner.gap_penalty == 2.5
 
-        # Step 2: Get first chapters and segment into sentences
-        english_title, english_content = english_chapters[0]
-        spanish_title, spanish_content = spanish_chapters[0]
-
-        english_sentences = segmenter.segment(english_content, language="en")
-        spanish_sentences = segmenter.segment(spanish_content, language="es")
-
-        # Verify segmentation worked
-        assert len(english_sentences) > 0, "Should segment English content"
-        assert len(spanish_sentences) > 0, "Should segment Spanish content"
-
-        # Step 3: Align sentences
-        alignment = aligner.align(english_sentences, spanish_sentences)
-
-        # Verify alignment produced results
-        assert len(alignment) > 0, "Should produce alignments"
-
-        # Verify alignment structure
-        for source_seg, target_seg in alignment:
-            assert isinstance(source_seg, str), "Source segment should be string"
-            assert isinstance(target_seg, str), "Target segment should be string"
-            assert (
-                len(source_seg) > 0 or len(target_seg) > 0
-            ), "Segments should not be empty"
-
-    def test_pipeline_with_language_detection(
-        self, english_epub_path: str, spanish_epub_path: str
-    ) -> None:
-        """
-        Test pipeline with automatic language detection.
-
-        This test verifies that the pipeline works when language detection
-        is left to the segmenter rather than being explicitly specified.
-
-        Args:
-            english_epub_path: Path to English EPUB test file
-            spanish_epub_path: Path to Spanish EPUB test file
-        """
-        parser = VivreParser()
-        segmenter = Segmenter()
-        aligner = Aligner(language_pair="en-es")
-
-        # Parse and get first chapters
-        english_chapters = parser.parse_epub(english_epub_path)
-        spanish_chapters = parser.parse_epub(spanish_epub_path)
-
-        english_title, english_content = english_chapters[0]
-        spanish_title, spanish_content = spanish_chapters[0]
-
-        # Segment with automatic language detection
-        english_sentences = segmenter.segment(english_content)  # No language specified
-        spanish_sentences = segmenter.segment(spanish_content)  # No language specified
-
-        # Verify segmentation worked
-        assert (
-            len(english_sentences) > 0
-        ), "Should segment English content with auto-detection"
-        assert (
-            len(spanish_sentences) > 0
-        ), "Should segment Spanish content with auto-detection"
-
-        # Align sentences
-        alignment = aligner.align(english_sentences, spanish_sentences)
-        assert (
-            len(alignment) > 0
-        ), "Should produce alignments with auto-detected languages"
-
-    def test_pipeline_with_batch_processing(
-        self, english_epub_path: str, spanish_epub_path: str
-    ) -> None:
-        """
-        Test pipeline using batch processing for efficiency.
-
-        This test verifies that the pipeline works correctly when using
-        batch processing methods for better performance.
-
-        Args:
-            english_epub_path: Path to English EPUB test file
-            spanish_epub_path: Path to Spanish EPUB test file
-        """
-        parser = VivreParser()
-        segmenter = Segmenter()
-        aligner = Aligner(language_pair="en-es")
-
-        # Parse and get first few chapters
-        english_chapters = parser.parse_epub(english_epub_path)
-        spanish_chapters = parser.parse_epub(spanish_epub_path)
-
-        # Take first 3 chapters from each
-        english_contents = [content for _, content in english_chapters[:3]]
-        spanish_contents = [content for _, content in spanish_chapters[:3]]
-
-        # Batch segment all chapters
-        english_sentence_lists = segmenter.segment_batch(
-            english_contents, language="en"
+    def test_process_parallel_epubs(self):
+        """Test processing parallel EPUB files."""
+        source_epub = (
+            Path(__file__).parent
+            / "data"
+            / "Vacation Under the Volcano - Mary Pope Osborne.epub"
         )
-        spanish_sentence_lists = segmenter.segment_batch(
-            spanish_contents, language="es"
+        target_epub = (
+            Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
         )
 
-        # Verify batch processing worked
-        assert len(english_sentence_lists) == len(
-            english_contents
-        ), "Should process all English chapters"
-        assert len(spanish_sentence_lists) == len(
-            spanish_contents
-        ), "Should process all Spanish chapters"
+        pipeline = VivrePipeline("en-es")
+        alignments = pipeline.process_parallel_epubs(source_epub, target_epub)
 
-        # Align each chapter pair
-        for i, (eng_sentences, esp_sentences) in enumerate(
-            zip(english_sentence_lists, spanish_sentence_lists)
-        ):
-            if eng_sentences and esp_sentences:  # Only align if both have content
-                alignment = aligner.align(eng_sentences, esp_sentences)
-                assert len(alignment) > 0, f"Should align chapter {i}"
+        assert isinstance(alignments, list)
+        assert len(alignments) > 0
 
-    def test_pipeline_error_handling(self) -> None:
-        """
-        Test pipeline error handling with invalid inputs.
+        # Check alignment structure
+        for source, target in alignments:
+            assert isinstance(source, str)
+            assert isinstance(target, str)
 
-        This test verifies that the pipeline handles errors gracefully
-        when given invalid or missing data.
-        """
-        segmenter = Segmenter()
-        aligner = Aligner(language_pair="en-es")
-
-        # Test with empty content
-        empty_sentences = segmenter.segment("")
-        assert empty_sentences == [], "Should handle empty content"
-
-        # Test with None content
-        none_sentences = segmenter.segment(None)  # type: ignore
-        assert none_sentences == [], "Should handle None content"
-
-        # Test alignment with empty lists
-        empty_alignment = aligner.align([], [])
-        assert empty_alignment == [], "Should handle empty sentence lists"
-
-    def test_pipeline_with_custom_aligner_parameters(
-        self, english_epub_path: str, spanish_epub_path: str
-    ) -> None:
-        """
-        Test pipeline with custom aligner parameters.
-
-        This test verifies that the pipeline works correctly when using
-        custom alignment parameters for different language pairs.
-
-        Args:
-            english_epub_path: Path to English EPUB test file
-            spanish_epub_path: Path to Spanish EPUB test file
-        """
-        parser = VivreParser()
-        segmenter = Segmenter()
-
-        # Test with custom aligner parameters
-        custom_aligner = Aligner(
-            language_pair="en-es",
-            c=1.1,  # Custom mean ratio
-            s2=7.0,  # Custom variance
-            gap_penalty=4.0,  # Custom gap penalty
+    def test_process_parallel_epubs_with_languages(self):
+        """Test processing parallel EPUB files with explicit languages."""
+        source_epub = (
+            Path(__file__).parent
+            / "data"
+            / "Vacation Under the Volcano - Mary Pope Osborne.epub"
+        )
+        target_epub = (
+            Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
         )
 
-        # Parse and segment
-        english_chapters = parser.parse_epub(english_epub_path)
-        spanish_chapters = parser.parse_epub(spanish_epub_path)
+        pipeline = VivrePipeline("en-es")
+        alignments = pipeline.process_parallel_epubs(
+            source_epub, target_epub, source_language="en", target_language="es"
+        )
 
-        english_title, english_content = english_chapters[0]
-        spanish_title, spanish_content = spanish_chapters[0]
+        assert isinstance(alignments, list)
+        assert len(alignments) > 0
 
-        english_sentences = segmenter.segment(english_content, language="en")
-        spanish_sentences = segmenter.segment(spanish_content, language="es")
+    def test_process_parallel_epubs_with_max_chapters(self):
+        """Test processing parallel EPUB files with max chapters limit."""
+        source_epub = (
+            Path(__file__).parent
+            / "data"
+            / "Vacation Under the Volcano - Mary Pope Osborne.epub"
+        )
+        target_epub = (
+            Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
+        )
 
-        # Align with custom parameters
-        alignment = custom_aligner.align(english_sentences, spanish_sentences)
-        assert len(alignment) > 0, "Should align with custom parameters"
+        pipeline = VivrePipeline("en-es")
+        alignments = pipeline.process_parallel_epubs(
+            source_epub, target_epub, max_chapters=1
+        )
+
+        assert isinstance(alignments, list)
+        # Should have fewer alignments due to max_chapters limit
+        assert len(alignments) > 0
+
+    def test_process_parallel_texts(self):
+        """Test processing parallel text strings."""
+        source_text = "Hello world. How are you?"
+        target_text = "Hola mundo. ¿Cómo estás?"
+
+        pipeline = VivrePipeline("en-es")
+        alignments = pipeline.process_parallel_texts(
+            source_text, target_text, source_language="en", target_language="es"
+        )
+
+        assert isinstance(alignments, list)
+        assert len(alignments) > 0
+
+        for source, target in alignments:
+            assert isinstance(source, str)
+            assert isinstance(target, str)
+
+    def test_process_parallel_texts_with_languages(self):
+        """Test processing parallel text strings with explicit languages."""
+        source_text = "Hello world. How are you?"
+        target_text = "Hola mundo. ¿Cómo estás?"
+
+        pipeline = VivrePipeline("en-es")
+        alignments = pipeline.process_parallel_texts(
+            source_text, target_text, source_language="en", target_language="es"
+        )
+
+        assert isinstance(alignments, list)
+        assert len(alignments) > 0
+
+    def test_process_parallel_chapters(self):
+        """Test processing parallel chapter lists."""
+        source_chapters = [("Chapter 1", "Hello world. How are you?")]
+        target_chapters = [("Capítulo 1", "Hola mundo. ¿Cómo estás?")]
+
+        pipeline = VivrePipeline("en-es")
+        alignments = pipeline.process_parallel_chapters(
+            source_chapters, target_chapters, source_language="en", target_language="es"
+        )
+
+        assert isinstance(alignments, list)
+        assert len(alignments) > 0
+
+        for source, target in alignments:
+            assert isinstance(source, str)
+            assert isinstance(target, str)
+
+    def test_process_parallel_chapters_with_languages(self):
+        """Test processing parallel chapter lists with explicit languages."""
+        source_chapters = [("Chapter 1", "Hello world. How are you?")]
+        target_chapters = [("Capítulo 1", "Hola mundo. ¿Cómo estás?")]
+
+        pipeline = VivrePipeline("en-es")
+        alignments = pipeline.process_parallel_chapters(
+            source_chapters, target_chapters, source_language="en", target_language="es"
+        )
+
+        assert isinstance(alignments, list)
+        assert len(alignments) > 0
+
+    def test_batch_process_epubs(self):
+        """Test batch processing of multiple EPUB pairs."""
+        source_epub = (
+            Path(__file__).parent
+            / "data"
+            / "Vacation Under the Volcano - Mary Pope Osborne.epub"
+        )
+        target_epub = (
+            Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
+        )
+
+        epub_pairs = [(source_epub, target_epub)]
+
+        pipeline = VivrePipeline("en-es")
+        results = pipeline.batch_process_epubs(epub_pairs)
+
+        assert isinstance(results, dict)
+        assert len(results) > 0
+
+        # Check that each result contains alignments
+        for book_name, alignments in results.items():
+            assert isinstance(book_name, str)
+            assert isinstance(alignments, list)
+            assert len(alignments) > 0
+
+    def test_batch_process_epubs_with_languages(self):
+        """Test batch processing with explicit languages."""
+        source_epub = (
+            Path(__file__).parent
+            / "data"
+            / "Vacation Under the Volcano - Mary Pope Osborne.epub"
+        )
+        target_epub = (
+            Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
+        )
+
+        epub_pairs = [(source_epub, target_epub)]
+
+        pipeline = VivrePipeline("en-es")
+        results = pipeline.batch_process_epubs(
+            epub_pairs, source_language="en", target_language="es"
+        )
+
+        assert isinstance(results, dict)
+        assert len(results) > 0
+
+    def test_batch_process_epubs_with_max_chapters(self):
+        """Test batch processing with max chapters limit."""
+        source_epub = (
+            Path(__file__).parent
+            / "data"
+            / "Vacation Under the Volcano - Mary Pope Osborne.epub"
+        )
+        target_epub = (
+            Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
+        )
+
+        epub_pairs = [(source_epub, target_epub)]
+
+        pipeline = VivrePipeline("en-es")
+        results = pipeline.batch_process_epubs(epub_pairs, max_chapters_per_book=1)
+
+        assert isinstance(results, dict)
+        assert len(results) > 0
+
+    def test_get_pipeline_info(self):
+        """Test getting pipeline information."""
+        pipeline = VivrePipeline("en-fr", c=1.1, s2=7.0, gap_penalty=2.5)
+        info = pipeline.get_pipeline_info()
+
+        assert isinstance(info, dict)
+        assert "language_pair" in info
+        assert "aligner_parameters" in info
+        assert "supported_languages" in info
+
+        assert info["language_pair"] == "en-fr"
+        assert info["aligner_parameters"]["c"] == 1.1
+        assert info["aligner_parameters"]["s2"] == 7.0
+        assert info["aligner_parameters"]["gap_penalty"] == 2.5
+        assert isinstance(info["supported_languages"], list)
+        assert len(info["supported_languages"]) > 0
 
 
-@pytest.fixture
-def english_epub_path() -> str:
-    """
-    Provide path to English EPUB test file.
+class TestCreatePipeline:
+    """Test the create_pipeline function."""
 
-    Returns:
-        Path to English EPUB test file for integration tests.
-    """
-    # Use the existing Percy Jackson English EPUB if available
-    test_data_dir = Path(__file__).parent / "data"
-    english_epub = test_data_dir / "percy_jackson_english.epub"
+    def test_create_pipeline_default(self):
+        """Test creating pipeline with default parameters."""
+        pipeline = create_pipeline()
 
-    if not english_epub.exists():
-        pytest.skip("English EPUB test file not found")
+        assert isinstance(pipeline, VivrePipeline)
+        assert pipeline.language_pair == "en-es"
 
-    return str(english_epub)
+    def test_create_pipeline_custom_language(self):
+        """Test creating pipeline with custom language pair."""
+        pipeline = create_pipeline("en-fr")
+
+        assert isinstance(pipeline, VivrePipeline)
+        assert pipeline.language_pair == "en-fr"
+
+    def test_create_pipeline_custom_parameters(self):
+        """Test creating pipeline with custom parameters."""
+        pipeline = create_pipeline("en-es", c=1.1, s2=7.0, gap_penalty=2.5)
+
+        assert isinstance(pipeline, VivrePipeline)
+        assert pipeline.language_pair == "en-es"
+        assert pipeline.aligner.c == 1.1
+        assert pipeline.aligner.s2 == 7.0
+        assert pipeline.aligner.gap_penalty == 2.5
 
 
-@pytest.fixture
-def spanish_epub_path() -> str:
-    """
-    Provide path to Spanish EPUB test file.
+class TestPipelineErrorHandling:
+    """Test error handling in the pipeline."""
 
-    Returns:
-        Path to Spanish EPUB test file for integration tests.
-    """
-    # Use the existing Percy Jackson Spanish EPUB if available
-    test_data_dir = Path(__file__).parent / "data"
-    spanish_epub = test_data_dir / "percy_jackson_spanish.epub"
+    def test_process_parallel_epubs_file_not_found(self):
+        """Test handling of non-existent files."""
+        pipeline = VivrePipeline("en-es")
 
-    if not spanish_epub.exists():
-        pytest.skip("Spanish EPUB test file not found")
+        with pytest.raises(FileNotFoundError):
+            pipeline.process_parallel_epubs("nonexistent1.epub", "nonexistent2.epub")
 
-    return str(spanish_epub)
+    def test_process_parallel_texts_empty_input(self):
+        """Test processing with empty text inputs."""
+        pipeline = VivrePipeline("en-es")
+
+        # Empty source text - explicitly specify Spanish language
+        alignments = pipeline.process_parallel_texts(
+            "", "Hola mundo.", target_language="es"
+        )
+        assert isinstance(alignments, list)
+
+        # Empty target text - explicitly specify English language
+        alignments = pipeline.process_parallel_texts(
+            "Hello world.", "", source_language="en"
+        )
+        assert isinstance(alignments, list)
+
+        # Both empty - no language detection needed
+        alignments = pipeline.process_parallel_texts("", "")
+        assert isinstance(alignments, list)
+
+    def test_process_parallel_chapters_empty_input(self):
+        """Test processing with empty chapter inputs."""
+        pipeline = VivrePipeline("en-es")
+
+        # Empty source chapters - explicitly specify Spanish language
+        alignments = pipeline.process_parallel_chapters(
+            [], [("Capítulo 1", "Hola mundo.")], target_language="es"
+        )
+        assert isinstance(alignments, list)
+
+        # Empty target chapters - explicitly specify English language
+        alignments = pipeline.process_parallel_chapters(
+            [("Chapter 1", "Hello world.")], [], source_language="en"
+        )
+        assert isinstance(alignments, list)
+
+        # Both empty - no language detection needed
+        alignments = pipeline.process_parallel_chapters([], [])
+        assert isinstance(alignments, list)
+
+    def test_batch_process_epubs_empty_list(self):
+        """Test batch processing with empty list."""
+        pipeline = VivrePipeline("en-es")
+
+        results = pipeline.batch_process_epubs([])
+        assert isinstance(results, dict)
+        assert len(results) == 0

@@ -11,7 +11,19 @@ Main Components:
     - Aligner: Statistical text alignment using the Gale-Church algorithm
     - VivrePipeline: High-level interface for the complete pipeline
 
+Top-level Functions:
+    - read(): Parse EPUB files and extract chapters
+    - align(): Align parallel texts and output in various formats
+
 Example:
+    >>> import vivre
+
+    # Simple usage with top-level functions
+    >>> chapters = vivre.read('path/to/epub')
+    >>> sentences = chapters.segment()
+    >>> corpus = vivre.align('english.epub', 'french.epub', form='json')
+
+    # Advanced usage with classes
     >>> from vivre import VivrePipeline
     >>> pipeline = VivrePipeline("en-es")
     >>> alignments = pipeline.process_parallel_epubs(
@@ -23,6 +35,7 @@ Example:
 """
 
 from .align import Aligner
+from .api import Chapters, align, read
 from .integration import VivrePipeline, create_pipeline
 from .parser import VivreParser
 from .segmenter import Segmenter
@@ -37,4 +50,7 @@ __all__ = [
     "Segmenter",
     "VivrePipeline",
     "create_pipeline",
+    "read",
+    "align",
+    "Chapters",
 ]
