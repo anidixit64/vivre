@@ -103,7 +103,9 @@ class TestVivrePipeline:
         target_text = "Hola mundo. ¿Cómo estás?"
 
         pipeline = VivrePipeline("en-es")
-        alignments = pipeline.process_parallel_texts(source_text, target_text)
+        alignments = pipeline.process_parallel_texts(
+            source_text, target_text, source_language="en", target_language="es"
+        )
 
         assert isinstance(alignments, list)
         assert len(alignments) > 0
@@ -132,7 +134,7 @@ class TestVivrePipeline:
 
         pipeline = VivrePipeline("en-es")
         alignments = pipeline.process_parallel_chapters(
-            source_chapters, target_chapters
+            source_chapters, target_chapters, source_language="en", target_language="es"
         )
 
         assert isinstance(alignments, list)
@@ -280,15 +282,19 @@ class TestPipelineErrorHandling:
         """Test processing with empty text inputs."""
         pipeline = VivrePipeline("en-es")
 
-        # Empty source text
-        alignments = pipeline.process_parallel_texts("", "Hola mundo.")
+        # Empty source text - explicitly specify Spanish language
+        alignments = pipeline.process_parallel_texts(
+            "", "Hola mundo.", target_language="es"
+        )
         assert isinstance(alignments, list)
 
-        # Empty target text
-        alignments = pipeline.process_parallel_texts("Hello world.", "")
+        # Empty target text - explicitly specify English language
+        alignments = pipeline.process_parallel_texts(
+            "Hello world.", "", source_language="en"
+        )
         assert isinstance(alignments, list)
 
-        # Both empty
+        # Both empty - no language detection needed
         alignments = pipeline.process_parallel_texts("", "")
         assert isinstance(alignments, list)
 
@@ -296,19 +302,19 @@ class TestPipelineErrorHandling:
         """Test processing with empty chapter inputs."""
         pipeline = VivrePipeline("en-es")
 
-        # Empty source chapters
+        # Empty source chapters - explicitly specify Spanish language
         alignments = pipeline.process_parallel_chapters(
-            [], [("Capítulo 1", "Hola mundo.")]
+            [], [("Capítulo 1", "Hola mundo.")], target_language="es"
         )
         assert isinstance(alignments, list)
 
-        # Empty target chapters
+        # Empty target chapters - explicitly specify English language
         alignments = pipeline.process_parallel_chapters(
-            [("Chapter 1", "Hello world.")], []
+            [("Chapter 1", "Hello world.")], [], source_language="en"
         )
         assert isinstance(alignments, list)
 
-        # Both empty
+        # Both empty - no language detection needed
         alignments = pipeline.process_parallel_chapters([], [])
         assert isinstance(alignments, list)
 
