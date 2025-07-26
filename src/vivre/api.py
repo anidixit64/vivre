@@ -17,6 +17,51 @@ from .parser import VivreParser
 from .segmenter import Segmenter
 
 
+class AlignmentResult:
+    """
+    A container for alignment results with multiple output format options.
+
+    This class holds the aligned corpus data and provides methods to
+    output it in various formats.
+    """
+
+    def __init__(self, corpus: Dict[str, Any]):
+        """
+        Initialize with aligned corpus data.
+
+        Args:
+            corpus: The aligned corpus dictionary
+        """
+        self._corpus = corpus
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Return the corpus as a dictionary."""
+        return self._corpus.copy()
+
+    def to_json(self, indent: int = 2) -> str:
+        """Return the corpus as JSON string."""
+        return json.dumps(self._corpus, indent=indent, ensure_ascii=False)
+
+    def to_text(self) -> str:
+        """Return the corpus as formatted text."""
+        return _format_as_text(self._corpus)
+
+    def to_csv(self) -> str:
+        """Return the corpus as CSV string."""
+        return _format_as_csv(self._corpus)
+
+    def to_xml(self) -> str:
+        """Return the corpus as XML string."""
+        return _format_as_xml(self._corpus)
+
+    def __repr__(self) -> str:
+        """String representation."""
+        return (
+            f"AlignmentResult(book_title='{self._corpus.get('book_title', '')}', "
+            f"language_pair='{self._corpus.get('language_pair', '')}')"
+        )
+
+
 class Chapters:
     """
     A container for parsed chapters with segmentation capabilities.
@@ -117,74 +162,70 @@ def read(epub_path: Union[str, Path]) -> Chapters:
 
 
 def align(
-    source_epub: Union[str, Path],
-    target_epub: Union[str, Path],
+    source: Union[str, Path, Chapters],
+    target: Union[str, Path, Chapters],
+    language_pair: str,
     method: str = "gale-church",
-    form: str = "json",
-    language_pair: Optional[str] = None,
     **kwargs: Any,
-) -> Union[str, Dict[str, Any]]:
+) -> AlignmentResult:
     """
-    Align parallel EPUB files and output in the specified format.
+    Align parallel EPUB files or Chapters objects and return an AlignmentResult.
+
+    This function can accept either file paths or Chapters objects, making it
+    flexible for different workflows. The language_pair parameter is required
+    for accurate alignment.
 
     Args:
-        source_epub: Path to source language EPUB
-        target_epub: Path to target language EPUB
+        source: Source language EPUB file path or Chapters object
+        target: Target language EPUB file path or Chapters object
+        language_pair: Language pair code (e.g., "en-fr", "es-en") - REQUIRED
         method: Alignment method (currently only "gale-church" supported)
-        form: Output format ("json", "text", "csv", "xml", "dict")
-        language_pair: Language pair code (e.g., "en-fr", auto-detected if None)
         **kwargs: Additional arguments passed to the pipeline
 
     Returns:
-        Aligned corpus in the specified format
+        AlignmentResult object with methods for different output formats
 
     Raises:
-        FileNotFoundError: If either EPUB file doesn't exist
-        ValueError: If method or format is not supported
+        FileNotFoundError: If EPUB files don't exist (when using file paths)
+        ValueError: If method is not supported or language_pair is invalid
 
     Example:
-        >>> corpus = vivre.align('english.epub', 'french.epub', form='json')
-        >>> print(corpus)
+        # Using file paths
+        >>> result = vivre.align('english.epub', 'french.epub', 'en-fr')
+        >>> print(result.to_json())
+        >>> print(result.to_csv())
 
-        >>> # Get as dictionary for programmatic access
-        >>> data = vivre.align('english.epub', 'french.epub', form='dict')
-        >>> print(f"Found {data['total_alignments']} alignments")
+        # Using Chapters objects (seamless workflow)
+        >>> source_chapters = vivre.read('english.epub')
+        >>> target_chapters = vivre.read('french.epub')
+        >>> result = vivre.align(source_chapters, target_chapters, 'en-fr')
+        >>> print(result.to_text())
+
+        # Get as dictionary for programmatic access
+        >>> data = result.to_dict()
+        >>> print(f"Found {len(data['chapters'])} chapters")
     """
-    source_epub = Path(source_epub)
-    target_epub = Path(target_epub)
-
-    if not source_epub.exists():
-        raise FileNotFoundError(f"Source EPUB file not found: {source_epub}")
-    if not target_epub.exists():
-        raise FileNotFoundError(f"Target EPUB file not found: {target_epub}")
-
     if method != "gale-church":
         raise ValueError(
             f"Method '{method}' not supported. Only 'gale-church' is available."
         )
 
-    if form.lower() not in ["json", "dict", "text", "csv", "xml"]:
+    # Validate language pair format
+    if not isinstance(language_pair, str) or "-" not in language_pair:
         raise ValueError(
-            f"Format '{form}' not supported. Use 'json', 'dict', 'text', 'csv', or 'xml'."
+            f"Invalid language_pair: '{language_pair}'. "
+            f"Use format 'en-fr', 'es-en', etc."
         )
 
-    # Auto-detect language pair from filenames if not provided
-    if language_pair is None:
-        source_lang = _detect_language_from_filename(source_epub)
-        target_lang = _detect_language_from_filename(target_epub)
-        language_pair = f"{source_lang}-{target_lang}"
+    # Parse source and target based on their types
+    source_chapters, source_title = _parse_source_or_chapters(source, "source")
+    target_chapters, target_title = _parse_source_or_chapters(target, "target")
 
     # Create pipeline and process
     try:
         pipeline = VivrePipeline(language_pair, **kwargs)
 
-        # Parse both EPUBs
-        source_chapters = pipeline.parser.parse_epub(source_epub)
-        target_chapters = pipeline.parser.parse_epub(target_epub)
-
-        # Get book titles
-        source_title = getattr(pipeline.parser, "_book_title", "")
-        target_title = getattr(pipeline.parser, "_book_title", "")
+        # Get book title (prefer source title, fallback to target)
         book_title = source_title or target_title
 
         # Process chapters and create aligned corpus
@@ -192,58 +233,57 @@ def align(
             source_chapters, target_chapters, pipeline, book_title, language_pair
         )
 
-        # Format output
-        if form.lower() == "json":
-            return json.dumps(aligned_corpus, indent=2, ensure_ascii=False)
-        elif form.lower() == "dict":
-            return aligned_corpus
-        elif form.lower() == "text":
-            return _format_as_text(aligned_corpus)
-        elif form.lower() == "csv":
-            return _format_as_csv(aligned_corpus)
-        elif form.lower() == "xml":
-            return _format_as_xml(aligned_corpus)
-        else:
-            return json.dumps(aligned_corpus, indent=2, ensure_ascii=False)
+        return AlignmentResult(aligned_corpus)
+
     except Exception as e:
-        raise ValueError(f"Failed to align EPUB files: {e}")
+        raise ValueError(f"Failed to align texts: {e}")
 
 
 def quick_align(
     source_epub: Union[str, Path],
     target_epub: Union[str, Path],
-    language_pair: Optional[str] = None,
+    language_pair: str,
 ) -> List[Tuple[str, str]]:
     """
     Quick alignment function that returns simple sentence pairs.
 
-    This is a convenience function for when you just need the aligned sentences
-    without the full metadata and formatting options.
+    This is a convenience function for simple use cases where you just
+    need sentence pairs without the full corpus structure.
 
     Args:
         source_epub: Path to source language EPUB
         target_epub: Path to target language EPUB
-        language_pair: Language pair code (auto-detected if None)
+        language_pair: Language pair code (e.g., "en-fr", "es-en") - REQUIRED
 
     Returns:
         List of (source_sentence, target_sentence) tuples
 
+    Raises:
+        FileNotFoundError: If either EPUB file doesn't exist
+        ValueError: If language_pair is invalid
+
     Example:
-        >>> pairs = vivre.quick_align('english.epub', 'french.epub')
-        >>> for source, target in pairs[:5]:  # Show first 5 pairs
+        >>> pairs = vivre.quick_align('english.epub', 'french.epub', 'en-fr')
+        >>> for source, target in pairs[:3]:
         ...     print(f"EN: {source}")
         ...     print(f"FR: {target}")
-        ...     print()
     """
-    result = align(source_epub, target_epub, form="dict", language_pair=language_pair)
+    # Validate language pair format
+    if not isinstance(language_pair, str) or "-" not in language_pair:
+        raise ValueError(
+            f"Invalid language_pair: '{language_pair}'. "
+            f"Use format 'en-fr', 'es-en', etc."
+        )
 
-    # Extract sentence pairs from the result
+    # Use the main align function and extract sentence pairs
+    result = align(source_epub, target_epub, language_pair)
+    corpus = result.to_dict()
+
     pairs = []
-    if isinstance(result, dict):
-        for chapter_data in result["chapters"].values():
-            for alignment in chapter_data["alignments"]:
-                source_lang, target_lang = result["language_pair"].split("-")
-                pairs.append((alignment[source_lang], alignment[target_lang]))
+    for chapter_data in corpus["chapters"].values():
+        for alignment in chapter_data["alignments"]:
+            source_lang, target_lang = language_pair.split("-")
+            pairs.append((alignment[source_lang], alignment[target_lang]))
 
     return pairs
 
@@ -253,36 +293,14 @@ def get_supported_languages() -> List[str]:
     Get a list of supported languages for segmentation.
 
     Returns:
-        List of supported language codes
+        List of supported language codes.
 
     Example:
-        >>> langs = vivre.get_supported_languages()
-        >>> print(f"Supported languages: {', '.join(langs)}")
+        >>> languages = vivre.get_supported_languages()
+        >>> print(f"Supported languages: {languages}")
     """
     segmenter = Segmenter()
     return list(segmenter._supported_languages.keys())
-
-
-def _detect_language_from_filename(filepath: Union[str, Path]) -> str:
-    """Detect language from filename patterns."""
-    filename = str(filepath).lower()
-
-    # Common language patterns in filenames
-    lang_patterns = {
-        "en": ["english", "en_", "_en", ".en", "vacation under the volcano"],
-        "fr": ["french", "fr_", "_fr", ".fr"],
-        "es": ["spanish", "es_", "_es", ".es", "vacaciones al pie de un volcán"],
-        "de": ["german", "de_", "_de", ".de"],
-        "it": ["italian", "it_", "_it", ".it"],
-        "pt": ["portuguese", "pt_", "_pt", ".pt"],
-    }
-
-    for lang, patterns in lang_patterns.items():
-        if any(pattern in filename for pattern in patterns):
-            return lang
-
-    # Default to English if no pattern matches
-    return "en"
 
 
 def _create_aligned_corpus(
@@ -401,3 +419,71 @@ def _format_as_xml(corpus: Dict[str, Any]) -> str:
 
     xml_lines.append("</alignments>")
     return "\n".join(xml_lines)
+
+
+def _parse_source_or_chapters(
+    source: Union[str, Path, Chapters], name: str
+) -> Tuple[List[Tuple[str, str]], str]:
+    """
+    Parse source or target, whether it's a file path or Chapters object.
+
+    Args:
+        source: File path or Chapters object
+        name: Name for error messages ("source" or "target")
+
+    Returns:
+        Tuple of (chapters, book_title)
+    """
+    if isinstance(source, Chapters):
+        # Already parsed Chapters object
+        return source.chapters, source.book_title
+    else:
+        # File path - parse the EPUB
+        source_path = Path(source)
+        if not source_path.exists():
+            raise FileNotFoundError(
+                f"{name.capitalize()} EPUB file not found: {source_path}"
+            )
+
+        parser = VivreParser()
+        chapters = parser.parse_epub(source_path)
+
+        # Extract book title from EPUB metadata
+        book_title = source_path.stem  # Default to filename
+        try:
+            # Load the EPUB and extract metadata
+            import zipfile
+
+            with zipfile.ZipFile(source_path, "r") as epub_zip:
+                # Find content.opf
+                container_xml = epub_zip.read("META-INF/container.xml")
+                from defusedxml import ElementTree as ET
+
+                container_root = ET.fromstring(container_xml)
+
+                # Extract the path to the content.opf file
+                selector = (
+                    './/container:rootfile[@media-type="application/oebps-package+xml"]'
+                )
+                rootfile_elem = container_root.find(
+                    selector,
+                    {"container": "urn:oasis:names:tc:opendocument:xmlns:container"},
+                )
+                if rootfile_elem is not None:
+                    content_opf_path = rootfile_elem.get("full-path")
+                    if content_opf_path:
+                        content_opf = epub_zip.read(content_opf_path)
+                        content_root = ET.fromstring(content_opf)
+
+                        # Extract book title from dc:title
+                        title_elem = content_root.find(
+                            ".//dc:title",
+                            {"dc": "http://purl.org/dc/elements/1.1/"},
+                        )
+                        if title_elem is not None and title_elem.text:
+                            book_title = title_elem.text.strip()
+        except Exception:
+            # If metadata extraction fails, use filename
+            pass
+
+        return chapters, book_title

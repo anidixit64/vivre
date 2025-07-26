@@ -182,9 +182,7 @@ class Segmenter:
 
         return sentences
 
-    def segment_batch(
-        self, texts: List[str], language: str
-    ) -> List[List[str]]:
+    def segment_batch(self, texts: List[str], language: str) -> List[List[str]]:
         """
         Segment multiple texts into sentences using spaCy's optimized batch processing.
 
@@ -230,9 +228,7 @@ class Segmenter:
 
         return results
 
-    def segment_mixed_batch(
-        self, texts: List[str]
-    ) -> List[List[str]]:
+    def segment_mixed_batch(self, texts: List[str]) -> List[List[str]]:
         """
         Segment multiple texts that may be in different languages.
 
@@ -255,32 +251,32 @@ class Segmenter:
 
         # Group texts by detected language
         language_groups: dict[str, list[tuple[int, str]]] = {}
-        
+
         for i, text in enumerate(texts):
             if not text or not text.strip():
                 # Empty text - will be handled later
                 continue
-                
+
             detected_lang = self._detect_language(text)
             if detected_lang not in language_groups:
                 language_groups[detected_lang] = []
             language_groups[detected_lang].append((i, text))
 
         # Initialize results list with empty lists
-        results = [[] for _ in texts]
+        results: List[List[str]] = [[] for _ in texts]
 
         # Process each language group separately
         for lang_code, text_items in language_groups.items():
             if not self.is_language_supported(lang_code):
                 # Fallback to English for unsupported languages
                 lang_code = "en"
-            
+
             # Extract just the texts for this language group
             indices, lang_texts = zip(*text_items)
-            
+
             # Process this language group
-            lang_results = self.segment_batch(lang_texts, lang_code)
-            
+            lang_results = self.segment_batch(list(lang_texts), lang_code)
+
             # Place results back in original positions
             for idx, sentences in zip(indices, lang_results):
                 results[idx] = sentences
