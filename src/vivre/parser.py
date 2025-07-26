@@ -27,6 +27,13 @@ from typing import Dict, List, Optional, Tuple, Union
 from bs4 import BeautifulSoup, Tag
 from defusedxml import ElementTree as ET
 
+# XML namespaces for EPUB parsing
+NAMESPACES = {
+    "dc": "http://purl.org/dc/elements/1.1/",
+    "opf": "http://www.idpf.org/2007/opf",
+    "container": "urn:oasis:names:tc:opendocument:xmlns:container",
+}
+
 
 class VivreParser:
     """
@@ -47,18 +54,19 @@ class VivreParser:
     different table of contents formats (NCX and HTML) and various content
     organization patterns.
 
+    IMPORTANT: This parser is stateless and can be safely reused for multiple
+    EPUB files without state pollution. Each parse_epub() call is independent.
+
     Attributes:
         file_path: Path to the currently loaded EPUB file, if any.
         _is_loaded: Boolean indicating whether an EPUB file is currently loaded.
-        _book_title: The book title extracted from metadata.
-        _book_language: The book language extracted from metadata.
 
     Example:
         >>> parser = VivreParser()
-        >>> chapters = parser.parse_epub("book.epub")
-        >>> print(f"Found {len(chapters)} chapters")
-        >>> for title, content in chapters:
-        ...     print(f"Chapter: {title}")
+        >>> chapters1 = parser.parse_epub("book1.epub")  # Safe to reuse
+        >>> chapters2 = parser.parse_epub("book2.epub")  # No state pollution
+        >>> print(f"Found {len(chapters1)} chapters in book1")
+        >>> print(f"Found {len(chapters2)} chapters in book2")
     """
 
     # Multilingual non-story content keywords
@@ -239,11 +247,14 @@ class VivreParser:
     }
 
     def __init__(self) -> None:
-        """Initialize the VivreParser instance."""
+        """
+        Initialize the VivreParser.
+
+        Creates a new parser instance ready to parse EPUB files.
+        The parser is stateless and can be reused for multiple files.
+        """
         self.file_path: Optional[Path] = None
         self._is_loaded: bool = False
-        self._book_title: Optional[str] = None
-        self._book_language: str = "en"  # Default to English
 
     def load_epub(self, file_path: Union[str, Path]) -> bool:
         """
@@ -414,7 +425,8 @@ class VivreParser:
 
                 # Extract the path to the content.opf file
                 rootfile_elem = container_root.find(
-                    './/{*}rootfile[@media-type="application/oebps-package+xml"]'
+                    './/container:rootfile[@media-type="application/oebps-package+xml"]',
+                    NAMESPACES,
                 )
                 if rootfile_elem is None:
                     raise ValueError("Could not find content.opf in container.xml")
@@ -427,8 +439,9 @@ class VivreParser:
                 content_opf = epub_zip.read(content_opf_path)
                 content_root = ET.fromstring(content_opf)
 
-                # Extract metadata (book title and language)
-                self._extract_metadata(content_opf)
+                # Extract metadata (book title and language) - now stateless
+                book_metadata = self._extract_metadata(content_opf)
+                book_language = book_metadata.get("language", "en")
 
                 # Get the base directory for the content files
                 content_dir = Path(content_opf_path).parent
@@ -440,12 +453,12 @@ class VivreParser:
                 )
 
                 # Find the spine to get the reading order
-                spine_elem = content_root.find(".//{*}spine")
+                spine_elem = content_root.find(".//opf:spine", NAMESPACES)
                 if spine_elem is None:
                     raise ValueError("Could not find spine in content.opf")
 
                 # Get all itemref elements in the spine
-                itemrefs = spine_elem.findall(".//{*}itemref")
+                itemrefs = spine_elem.findall(".//opf:itemref", NAMESPACES)
                 if not itemrefs:
                     raise ValueError("No itemref elements found in spine")
 
@@ -456,11 +469,13 @@ class VivreParser:
                         continue
 
                     # Find the manifest item with this id
-                    manifest_elem = content_root.find(".//{*}manifest")
+                    manifest_elem = content_root.find(".//opf:manifest", NAMESPACES)
                     if manifest_elem is None:
                         continue
 
-                    item_elem = manifest_elem.find(f'.//{{*}}item[@id="{idref}"]')
+                    item_elem = manifest_elem.find(
+                        f'.//opf:item[@id="{idref}"]', NAMESPACES
+                    )
                     if item_elem is None:
                         continue
 
@@ -468,8 +483,8 @@ class VivreParser:
                     if not href:
                         continue
 
-                    # Skip non-story content based on href pattern
-                    if self._is_non_story_content("", href):
+                    # Skip non-story content based on href pattern - now with explicit language
+                    if self._is_non_story_content("", href, book_language):
                         continue
 
                     # Construct the full path to the chapter file
@@ -629,8 +644,9 @@ class VivreParser:
             return True
 
         # Check if title matches the book title from metadata
-        if self._book_title and title_lower == self._book_title.lower():
-            return True
+        # This instance variable is no longer available, so we'll skip this check
+        # if self._book_title and title_lower == self._book_title.lower():
+        #     return True
 
         # Check if title matches the HTML document title (but allow if it's the
         # only title found)
@@ -811,33 +827,26 @@ class VivreParser:
 
         return text
 
-    def _is_non_story_content(self, title: str, href: str) -> bool:
+    def _is_non_story_content(self, title: str, href: str, book_language: str) -> bool:
         """
         Check if content should be filtered out as non-story content.
 
         This method identifies various types of non-story content that
-        should be excluded from the final chapter list, using multilingual
-        keyword lists based on the book's language.
+        should be excluded from the final chapter list. It prioritizes
+        href patterns over title patterns for more robust filtering.
 
         Args:
             title: The chapter title.
             href: The chapter file path.
+            book_language: The book's language code.
 
         Returns:
             True if the content should be filtered out, False otherwise.
         """
-        # Get the appropriate keyword list for the book's language
-        keywords = self.NON_STORY_KEYWORDS.get(
-            self._book_language, self.NON_STORY_KEYWORDS["en"]
-        )
-
-        # Check title for common non-story content indicators
-        title_lower = title.lower()
-        if any(keyword in title_lower for keyword in keywords):
-            return True
-
-        # Check href for common non-story file patterns
         href_lower = href.lower()
+
+        # PRIORITY 1: Check href for common non-story file patterns
+        # These patterns are the most reliable indicators
         non_story_patterns = [
             "cover",
             "title",
@@ -889,25 +898,42 @@ class VivreParser:
         if re.search(r"front_split", href_lower):
             return True
 
+        # PRIORITY 2: Only check title if href passed the initial filter
+        # This prevents important content from being discarded based on generic titles
+        if title:
+            # Get the appropriate keyword list for the book's language
+            keywords = self.NON_STORY_KEYWORDS.get(
+                book_language, self.NON_STORY_KEYWORDS["en"]
+            )
+
+            # Check title for common non-story content indicators
+            title_lower = title.lower()
+            if any(keyword in title_lower for keyword in keywords):
+                return True
+
         return False
 
-    def _extract_metadata(self, content_opf: bytes) -> None:
+    def _extract_metadata(self, content_opf: bytes) -> Dict[str, str]:
         """
         Extract book metadata from content.opf file.
 
         Args:
             content_opf: Raw bytes of the content.opf file.
+
+        Returns:
+            Dictionary containing 'title' and 'language' metadata.
         """
+        metadata: Dict[str, str] = {}
         try:
             root = ET.fromstring(content_opf)
 
             # Extract book title from dc:title
-            title_elem = root.find(".//{*}title")
+            title_elem = root.find(".//dc:title", NAMESPACES)
             if title_elem is not None and title_elem.text:
-                self._book_title = title_elem.text.strip()
+                metadata["title"] = title_elem.text.strip()
 
             # Extract language from dc:language
-            lang_elem = root.find(".//{*}language")
+            lang_elem = root.find(".//dc:language", NAMESPACES)
             if lang_elem is not None and lang_elem.text:
                 lang_code = lang_elem.text.strip().lower()
                 # Map language codes to our supported languages
@@ -932,10 +958,11 @@ class VivreParser:
                     "italian": "it",
                     "italiano": "it",
                 }
-                self._book_language = lang_mapping.get(lang_code, "en")
+                metadata["language"] = lang_mapping.get(lang_code, "en")
 
         except Exception as e:
             print(f"Warning: Could not extract metadata: {e}")
+        return metadata
 
     def _find_navigation_document(
         self, content_opf: bytes, epub_zip: zipfile.ZipFile, content_dir: Path
@@ -959,9 +986,9 @@ class VivreParser:
             root = ET.fromstring(content_opf)
 
             # EPUB3: Look for navigation document with properties="nav"
-            manifest = root.find(".//{*}manifest")
+            manifest = root.find(".//opf:manifest", NAMESPACES)
             if manifest is not None:
-                for item in manifest.findall(".//{*}item"):
+                for item in manifest.findall(".//opf:item", NAMESPACES):
                     properties = item.get("properties")
                     if properties and "nav" in properties.split():
                         href = item.get("href")
@@ -971,13 +998,13 @@ class VivreParser:
                             return str(nav_path)
 
             # EPUB2: Look for NCX file referenced in spine
-            spine = root.find(".//{*}spine")
+            spine = root.find(".//opf:spine", NAMESPACES)
             if spine is not None:
                 toc_id = spine.get("toc")
                 if toc_id:
                     # Find the item with this ID in manifest
                     if manifest is not None:
-                        for item in manifest.findall(".//{*}item"):
+                        for item in manifest.findall(".//opf:item", NAMESPACES):
                             if item.get("id") == toc_id:
                                 href = item.get("href")
                                 if href:

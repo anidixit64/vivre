@@ -8,4 +8,4 @@ This module allows the vivre package to be executed directly:
 from .cli import app
 
 if __name__ == "__main__":
-    app() 
+    app()

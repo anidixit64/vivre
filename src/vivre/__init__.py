@@ -25,7 +25,7 @@ Example:
     >>> print(f"Found {len(chapters)} chapters")
     >>> sentences = chapters.segment()
     >>> corpus = vivre.align('english.epub', 'french.epub', form='json')
-    
+
     # Quick alignment for simple use cases
     >>> pairs = vivre.quick_align('english.epub', 'french.epub')
     >>> for source, target in pairs[:3]:
@@ -45,16 +45,16 @@ Example:
 Command Line Usage:
     # Parse an EPUB file
     $ vivre parse book.epub
-    
+
     # Align two EPUB files
     $ vivre align english.epub french.epub --format json
-    
+
     # Get help
     $ vivre --help
 """
 
 from .align import Aligner
-from .api import Chapters, align, read, quick_align, get_supported_languages
+from .api import Chapters, align, get_supported_languages, quick_align, read
 from .integration import VivrePipeline, create_pipeline
 from .parser import VivreParser
 from .segmenter import Segmenter

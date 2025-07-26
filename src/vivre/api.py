@@ -78,7 +78,9 @@ class Chapters:
 
     def __repr__(self) -> str:
         """String representation."""
-        return f"Chapters(book_title='{self.book_title}', chapters={len(self.chapters)})"
+        return (
+            f"Chapters(book_title='{self.book_title}', chapters={len(self.chapters)})"
+        )
 
 
 def read(epub_path: Union[str, Path]) -> Chapters:
@@ -104,7 +106,7 @@ def read(epub_path: Union[str, Path]) -> Chapters:
     epub_path = Path(epub_path)
     if not epub_path.exists():
         raise FileNotFoundError(f"EPUB file not found: {epub_path}")
-    
+
     parser = VivreParser()
     try:
         chapters = parser.parse_epub(epub_path)
@@ -143,49 +145,53 @@ def align(
     Example:
         >>> corpus = vivre.align('english.epub', 'french.epub', form='json')
         >>> print(corpus)
-        
+
         >>> # Get as dictionary for programmatic access
         >>> data = vivre.align('english.epub', 'french.epub', form='dict')
         >>> print(f"Found {data['total_alignments']} alignments")
     """
     source_epub = Path(source_epub)
     target_epub = Path(target_epub)
-    
+
     if not source_epub.exists():
         raise FileNotFoundError(f"Source EPUB file not found: {source_epub}")
     if not target_epub.exists():
         raise FileNotFoundError(f"Target EPUB file not found: {target_epub}")
-    
+
     if method != "gale-church":
-        raise ValueError(f"Method '{method}' not supported. Only 'gale-church' is available.")
-    
+        raise ValueError(
+            f"Method '{method}' not supported. Only 'gale-church' is available."
+        )
+
     if form.lower() not in ["json", "dict", "text", "csv", "xml"]:
-        raise ValueError(f"Format '{form}' not supported. Use 'json', 'dict', 'text', 'csv', or 'xml'.")
-    
+        raise ValueError(
+            f"Format '{form}' not supported. Use 'json', 'dict', 'text', 'csv', or 'xml'."
+        )
+
     # Auto-detect language pair from filenames if not provided
     if language_pair is None:
         source_lang = _detect_language_from_filename(source_epub)
         target_lang = _detect_language_from_filename(target_epub)
         language_pair = f"{source_lang}-{target_lang}"
-    
+
     # Create pipeline and process
     try:
         pipeline = VivrePipeline(language_pair, **kwargs)
-        
+
         # Parse both EPUBs
         source_chapters = pipeline.parser.parse_epub(source_epub)
         target_chapters = pipeline.parser.parse_epub(target_epub)
-        
+
         # Get book titles
-        source_title = getattr(pipeline.parser, '_book_title', '')
-        target_title = getattr(pipeline.parser, '_book_title', '')
+        source_title = getattr(pipeline.parser, "_book_title", "")
+        target_title = getattr(pipeline.parser, "_book_title", "")
         book_title = source_title or target_title
-        
+
         # Process chapters and create aligned corpus
         aligned_corpus = _create_aligned_corpus(
             source_chapters, target_chapters, pipeline, book_title, language_pair
         )
-        
+
         # Format output
         if form.lower() == "json":
             return json.dumps(aligned_corpus, indent=2, ensure_ascii=False)
@@ -210,7 +216,7 @@ def quick_align(
 ) -> List[Tuple[str, str]]:
     """
     Quick alignment function that returns simple sentence pairs.
-    
+
     This is a convenience function for when you just need the aligned sentences
     without the full metadata and formatting options.
 
@@ -230,24 +236,25 @@ def quick_align(
         ...     print()
     """
     result = align(source_epub, target_epub, form="dict", language_pair=language_pair)
-    
+
     # Extract sentence pairs from the result
     pairs = []
-    for chapter_data in result["chapters"].values():
-        for alignment in chapter_data["alignments"]:
-            source_lang, target_lang = result["language_pair"].split("-")
-            pairs.append((alignment[source_lang], alignment[target_lang]))
-    
+    if isinstance(result, dict):
+        for chapter_data in result["chapters"].values():
+            for alignment in chapter_data["alignments"]:
+                source_lang, target_lang = result["language_pair"].split("-")
+                pairs.append((alignment[source_lang], alignment[target_lang]))
+
     return pairs
 
 
 def get_supported_languages() -> List[str]:
     """
     Get a list of supported languages for segmentation.
-    
+
     Returns:
         List of supported language codes
-        
+
     Example:
         >>> langs = vivre.get_supported_languages()
         >>> print(f"Supported languages: {', '.join(langs)}")
@@ -361,32 +368,36 @@ def _format_as_csv(corpus: Dict[str, Any]) -> str:
 
 def _format_as_xml(corpus: Dict[str, Any]) -> str:
     """Format corpus as XML."""
-    source_lang, target_lang = corpus['language_pair'].split('-')
-    
+    source_lang, target_lang = corpus["language_pair"].split("-")
+
     xml_lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
-        '<alignments>',
+        "<alignments>",
         f'  <book_title>{corpus["book_title"]}</book_title>',
         f'  <language_pair>{corpus["language_pair"]}</language_pair>',
         f'  <total_alignments>{len(corpus["chapters"])}</total_alignments>',
     ]
-    
-    for chapter_num, chapter_data in corpus['chapters'].items():
-        xml_lines.extend([
-            f'  <chapter number="{chapter_num}">',
-            f'    <title>{chapter_data["title"]}</title>',
-            '    <alignments>',
-        ])
-        
-        for alignment in chapter_data['alignments']:
-            xml_lines.extend([
-                '      <alignment>',
-                f'        <{source_lang}>{alignment[source_lang]}</{source_lang}>',
-                f'        <{target_lang}>{alignment[target_lang]}</{target_lang}>',
-                '      </alignment>',
-            ])
-        
-        xml_lines.extend(['    </alignments>', '  </chapter>'])
-    
-    xml_lines.append('</alignments>')
-    return '\n'.join(xml_lines)
+
+    for chapter_num, chapter_data in corpus["chapters"].items():
+        xml_lines.extend(
+            [
+                f'  <chapter number="{chapter_num}">',
+                f'    <title>{chapter_data["title"]}</title>',
+                "    <alignments>",
+            ]
+        )
+
+        for alignment in chapter_data["alignments"]:
+            xml_lines.extend(
+                [
+                    "      <alignment>",
+                    f"        <{source_lang}>{alignment[source_lang]}</{source_lang}>",
+                    f"        <{target_lang}>{alignment[target_lang]}</{target_lang}>",
+                    "      </alignment>",
+                ]
+            )
+
+        xml_lines.extend(["    </alignments>", "  </chapter>"])
+
+    xml_lines.append("</alignments>")
+    return "\n".join(xml_lines)
