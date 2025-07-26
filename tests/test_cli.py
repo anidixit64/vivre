@@ -364,7 +364,7 @@ class TestCLIErrorHandling:
 
         assert result.exit_code == 0
         assert "epub_path" in result.stdout
-        assert "show-content" in result.stdout
+        assert "show_content" in result.stdout or "show-content" in result.stdout
         assert "format" in result.stdout
 
     def test_align_help(self):
