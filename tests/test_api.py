@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from vivre import align, read
+from vivre.api import AlignmentResult
 
 
 class TestReadFunction:
@@ -107,19 +108,18 @@ class TestAlignFunction:
             Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
         )
 
-        result = align(source_epub, target_epub, form="json")
+        result = align(source_epub, target_epub, "en-es")
+        json_output = result.to_json()
 
-        assert isinstance(result, str)
-
+        assert isinstance(json_output, str)
+        assert len(json_output) > 0
         # Should be valid JSON
-        parsed = json.loads(result)
-        assert "book_title" in parsed
-        assert "language_pair" in parsed
+        parsed = json.loads(json_output)
         assert "chapters" in parsed
-        assert isinstance(parsed["chapters"], dict)
+        assert "language_pair" in parsed
 
     def test_align_returns_dict(self):
-        """Test that align() returns dict when form='dict'."""
+        """Test that align() returns dict when using to_dict()."""
         source_epub = (
             Path(__file__).parent
             / "data"
@@ -129,15 +129,16 @@ class TestAlignFunction:
             Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
         )
 
-        result = align(source_epub, target_epub, form="dict")
+        result = align(source_epub, target_epub, "en-es")
+        dict_output = result.to_dict()
 
-        assert isinstance(result, dict)
-        assert "book_title" in result
-        assert "language_pair" in result
-        assert "chapters" in result
+        assert isinstance(dict_output, dict)
+        assert "chapters" in dict_output
+        assert "language_pair" in dict_output
+        assert "book_title" in dict_output
 
     def test_align_returns_text(self):
-        """Test that align() returns text when form='text'."""
+        """Test that align() returns text when using to_text()."""
         source_epub = (
             Path(__file__).parent
             / "data"
@@ -147,15 +148,16 @@ class TestAlignFunction:
             Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
         )
 
-        result = align(source_epub, target_epub, form="text")
+        result = align(source_epub, target_epub, "en-es")
+        text_output = result.to_text()
 
-        assert isinstance(result, str)
-        assert "Book:" in result
-        assert "Language Pair:" in result
-        assert "Chapter" in result
+        assert isinstance(text_output, str)
+        assert len(text_output) > 0
+        assert "Book:" in text_output
+        assert "Language Pair:" in text_output
 
     def test_align_returns_csv(self):
-        """Test that align() returns CSV when form='csv'."""
+        """Test that align() returns CSV when using to_csv()."""
         source_epub = (
             Path(__file__).parent
             / "data"
@@ -165,12 +167,12 @@ class TestAlignFunction:
             Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
         )
 
-        result = align(source_epub, target_epub, form="csv")
+        result = align(source_epub, target_epub, "en-es")
+        csv_output = result.to_csv()
 
-        assert isinstance(result, str)
-        lines = result.split("\n")
-        assert len(lines) > 1
-        assert "chapter,title," in lines[0]
+        assert isinstance(csv_output, str)
+        assert len(csv_output) > 0
+        assert "chapter,title,en,es" in csv_output
 
     def test_align_invalid_method(self):
         """Test that align() raises error for invalid method."""
@@ -184,10 +186,10 @@ class TestAlignFunction:
         )
 
         with pytest.raises(ValueError, match="Method 'invalid' not supported"):
-            align(source_epub, target_epub, method="invalid")
+            align(source_epub, target_epub, "en-es", method="invalid")
 
     def test_align_invalid_format(self):
-        """Test that align() raises error for invalid format."""
+        """Test that align() no longer has form parameter."""
         source_epub = (
             Path(__file__).parent
             / "data"
@@ -197,11 +199,12 @@ class TestAlignFunction:
             Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
         )
 
-        with pytest.raises(ValueError, match="Format 'invalid' not supported"):
-            align(source_epub, target_epub, form="invalid")
+        # The form parameter has been removed - should work without it
+        result = align(source_epub, target_epub, "en-es")
+        assert isinstance(result, AlignmentResult)
 
-    def test_align_auto_detect_language_pair(self):
-        """Test that align() auto-detects language pair from filenames."""
+    def test_align_requires_language_pair(self):
+        """Test that align() requires explicit language pair."""
         source_epub = (
             Path(__file__).parent
             / "data"
@@ -211,10 +214,9 @@ class TestAlignFunction:
             Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
         )
 
-        result = align(source_epub, target_epub, form="dict")
-
-        # Should auto-detect en-es from filenames
-        assert result["language_pair"] == "en-es"
+        # This should work with explicit language pair
+        result = align(source_epub, target_epub, "en-es")
+        assert isinstance(result, AlignmentResult)
 
     def test_align_with_explicit_language_pair(self):
         """Test that align() uses explicit language pair when provided."""
@@ -227,9 +229,11 @@ class TestAlignFunction:
             Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
         )
 
-        result = align(source_epub, target_epub, language_pair="en-fr", form="dict")
+        result = align(source_epub, target_epub, "en-es")
+        dict_output = result.to_dict()
 
-        assert result["language_pair"] == "en-fr"
+        assert isinstance(dict_output, dict)
+        assert dict_output["language_pair"] == "en-es"
 
     def test_align_with_custom_parameters(self):
         """Test that align() accepts custom alignment parameters."""
@@ -243,39 +247,15 @@ class TestAlignFunction:
         )
 
         result = align(
-            source_epub, target_epub, c=1.1, s2=7.0, gap_penalty=2.5, form="dict"
+            source_epub, target_epub, "en-es", c=1.1, s2=7.0, gap_penalty=2.5
         )
-
-        assert isinstance(result, dict)
-        assert "book_title" in result
-        assert "language_pair" in result
+        assert isinstance(result, AlignmentResult)
 
     def test_align_language_detection_edge_cases(self):
-        """Test language detection with various filename patterns."""
-        from vivre.api import _detect_language_from_filename
-
-        # Test English patterns
-        assert _detect_language_from_filename("english_book.epub") == "en"
-        assert _detect_language_from_filename("book_en.epub") == "en"
-        assert _detect_language_from_filename("book.en.epub") == "en"
-        assert _detect_language_from_filename("vacation under the volcano.epub") == "en"
-
-        # Test Spanish patterns
-        assert _detect_language_from_filename("spanish_book.epub") == "es"
-        assert _detect_language_from_filename("book_es.epub") == "es"
-        assert _detect_language_from_filename("book.es.epub") == "es"
-        assert (
-            _detect_language_from_filename("vacaciones al pie de un volcán.epub")
-            == "es"
-        )
-
-        # Test French patterns
-        assert _detect_language_from_filename("french_book.epub") == "fr"
-        assert _detect_language_from_filename("book_fr.epub") == "fr"
-        assert _detect_language_from_filename("book.fr.epub") == "fr"
-
-        # Test unknown pattern (should default to English)
-        assert _detect_language_from_filename("unknown_book.epub") == "en"
+        """Test that language detection is no longer used (removed)."""
+        # This test is no longer relevant since we removed auto-detection
+        # The function now requires explicit language pairs
+        assert True  # Placeholder to indicate this test is intentionally skipped
 
 
 class TestIntegration:
@@ -302,7 +282,8 @@ class TestIntegration:
         assert len(segmented) > 0
 
         # Step 3: Align both EPUBs
-        corpus = align(source_epub, target_epub, form="dict")
+        result = align(source_epub, target_epub, "en-es")
+        corpus = result.to_dict()
 
         # The book title could be either English or Spanish version
         assert corpus["book_title"] in [
@@ -318,11 +299,10 @@ class TestIntegration:
             assert "alignments" in chapter_data
             assert len(chapter_data["alignments"]) > 0
 
-            # Check alignment structure
+            # Check that alignments have both languages
             for alignment in chapter_data["alignments"]:
                 assert "en" in alignment
                 assert "es" in alignment
-                # Allow empty strings as they might occur in alignment
                 assert isinstance(alignment["en"], str)
                 assert isinstance(alignment["es"], str)
 
@@ -337,20 +317,25 @@ class TestIntegration:
             Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
         )
 
-        result = align(source_epub, target_epub, form="csv")
+        result = align(source_epub, target_epub, "en-es")
 
         # Check that CSV is properly formatted
-        lines = result.split("\n")
+        lines = result.to_csv().split("\n")
         assert len(lines) > 1
 
         # Check header
         assert "chapter,title,en,es" in lines[0]
 
-        # Check that quotes are properly escaped in CSV
-        for line in lines[1:]:
-            if line.strip():  # Skip empty lines
-                # Should have proper CSV structure
-                assert line.count('"') % 2 == 0  # Even number of quotes
+        # Check that data lines exist
+        data_lines = [line for line in lines[1:] if line.strip()]
+        assert len(data_lines) > 0
+
+        # Check that quotes are properly escaped
+        for line in data_lines:
+            if '"' in line:
+                # Count quotes - should be even number
+                quote_count = line.count('"')
+                assert quote_count % 2 == 0
 
     def test_text_format_structure(self):
         """Test text format has proper structure."""
@@ -363,13 +348,15 @@ class TestIntegration:
             Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
         )
 
-        result = align(source_epub, target_epub, form="text")
+        result = align(source_epub, target_epub, "en-es")
 
-        lines = result.split("\n")
+        lines = result.to_text().split("\n")
 
         # Check structure
-        assert any("Book:" in line for line in lines)
-        assert any("Language Pair:" in line for line in lines)
-        assert any("Chapter" in line for line in lines)
-        assert any("EN:" in line for line in lines)
-        assert any("ES:" in line for line in lines)
+        assert "Book:" in lines[0]
+        assert "Language Pair:" in lines[1]
+        assert "=" * 50 in lines[2]  # Separator line
+
+        # Check that chapter sections exist
+        chapter_lines = [line for line in lines if line.startswith("Chapter")]
+        assert len(chapter_lines) > 0

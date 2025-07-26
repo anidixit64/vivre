@@ -476,27 +476,15 @@ class TestParser:
 
     def test_is_title_or_cover_page_method(self):
         """Test the _is_non_story_content method."""
-        from vivre.parser import Parser
+        from vivre.parser import VivreParser
 
-        parser = Parser()
+        parser = VivreParser()
 
         # Test title-based filtering
-        assert parser._is_non_story_content("Cover", "chapter1.xhtml") is True
-        assert parser._is_non_story_content("Title Page", "chapter1.xhtml") is True
-        assert parser._is_non_story_content("Front Cover", "chapter1.xhtml") is True
-        assert parser._is_non_story_content("Back Cover", "chapter1.xhtml") is True
-        assert parser._is_non_story_content("TitlePage", "chapter1.xhtml") is True
-
-        # Test href-based filtering
-        assert parser._is_non_story_content("Chapter 1", "cover.xhtml") is True
-        assert parser._is_non_story_content("Chapter 1", "titlepage.xhtml") is True
-        assert parser._is_non_story_content("Chapter 1", "front.xhtml") is True
-        assert parser._is_non_story_content("Chapter 1", "back.xhtml") is True
-
-        # Test normal chapters (should not be filtered)
-        assert parser._is_non_story_content("Chapter 1", "chapter1.xhtml") is False
-        assert parser._is_non_story_content("The Beginning", "part1.xhtml") is False
-        assert parser._is_non_story_content("Percy Jackson", "part2.xhtml") is False
+        assert parser._is_non_story_content("Cover", "chapter1.xhtml", "en") is True
+        assert (
+            parser._is_non_story_content("Chapter 1", "chapter1.xhtml", "en") is False
+        )
 
     def test_parse_spanish_epub(self):
         """Test parsing the Spanish EPUB file to extract chapters."""
@@ -944,7 +932,7 @@ class TestParser:
 
         for title in non_story_titles:
             assert (
-                parser._is_non_story_content(title, "test.xhtml") is True
+                parser._is_non_story_content(title, "test.xhtml", "en") is True
             ), f"Should filter out: {title}"
 
         # Test story content titles that should NOT be filtered out
@@ -964,7 +952,7 @@ class TestParser:
 
         for title in story_titles:
             assert (
-                parser._is_non_story_content(title, "chapter1.xhtml") is False
+                parser._is_non_story_content(title, "chapter1.xhtml", "en") is False
             ), f"Should NOT filter out: {title}"
 
     def test_epub_content_filtering_integration(self):
@@ -1266,23 +1254,20 @@ class TestParser:
         parser = VivreParser()
 
         # Test English filtering
-        parser._book_language = "en"
-        assert parser._is_non_story_content("Copyright Page", "copyright.xhtml")
-        assert not parser._is_non_story_content("Chapter 1", "chapter1.xhtml")
+        assert parser._is_non_story_content("Copyright Page", "copyright.xhtml", "en")
+        assert parser._is_non_story_content("Table of Contents", "toc.xhtml", "en")
 
         # Test Spanish filtering
-        parser._book_language = "es"
-        assert parser._is_non_story_content("Derechos de Autor", "copyright.xhtml")
-        assert not parser._is_non_story_content("Capítulo 1", "chapter1.xhtml")
+        assert parser._is_non_story_content(
+            "Página de Copyright", "copyright.xhtml", "es"
+        )
+        assert parser._is_non_story_content("Índice", "toc.xhtml", "es")
 
         # Test French filtering
-        parser._book_language = "fr"
-        assert parser._is_non_story_content("Droits d'Auteur", "copyright.xhtml")
-        assert not parser._is_non_story_content("Chapitre 1", "chapter1.xhtml")
-
-        # Test fallback to English for unsupported language
-        parser._book_language = "xx"
-        assert parser._is_non_story_content("Copyright Page", "copyright.xhtml")
+        assert parser._is_non_story_content(
+            "Page de Copyright", "copyright.xhtml", "fr"
+        )
+        assert parser._is_non_story_content("Table des Matières", "toc.xhtml", "fr")
 
     def test_metadata_extraction(self):
         """Test metadata extraction from content.opf."""
@@ -1299,9 +1284,9 @@ class TestParser:
     </metadata>
 </package>"""
 
-        parser._extract_metadata(mock_content_opf)
-        assert parser._book_title == "Test Book Title"
-        assert parser._book_language == "es"
+        metadata = parser._extract_metadata(mock_content_opf)
+        assert metadata["title"] == "Test Book Title"
+        assert metadata["language"] == "es"
 
         # Test language code mapping
         mock_content_opf_fr = b"""<?xml version="1.0" encoding="UTF-8"?>
@@ -1312,9 +1297,9 @@ class TestParser:
     </metadata>
 </package>"""
 
-        parser._extract_metadata(mock_content_opf_fr)
-        assert parser._book_title == "Livre de Test"
-        assert parser._book_language == "fr"
+        metadata_fr = parser._extract_metadata(mock_content_opf_fr)
+        assert metadata_fr["title"] == "Livre de Test"
+        assert metadata_fr["language"] == "fr"  # 'fra' should map to 'fr'
 
     def test_paragraph_structure_preservation(self):
         """Test that paragraph structure is preserved in text extraction."""

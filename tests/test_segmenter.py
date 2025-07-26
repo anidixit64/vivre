@@ -664,8 +664,9 @@ class TestSegmenter:
         mock_model.return_value = mock_doc
 
         # Test languages with installed models - mock both language detection and model loading
-        with patch.object(segmenter, "_detect_language") as mock_detect, patch.object(
-            segmenter, "_load_model", return_value=mock_model
+        with (
+            patch.object(segmenter, "_detect_language") as mock_detect,
+            patch.object(segmenter, "_load_model", return_value=mock_model),
         ):
 
             # Test English
@@ -862,28 +863,34 @@ class TestSegmenter:
         assert results == []
 
     def test_batch_processing_mixed_languages(self):
-        """Test batch processing with language override for mixed content."""
+        """Test batch processing with mixed languages using the appropriate method."""
         from vivre.segmenter import Segmenter
 
         segmenter = Segmenter()
 
-        # Test with mixed language content but English override
+        # Test with mixed language content
         texts = [
             "This is English text.",
             "Este es texto en español.",
             "Ceci est du texte français.",
         ]
 
-        # Process with English override (should use English model for all)
-        results = segmenter.segment_batch(texts, language="en")
+        # Use segment_mixed_batch for mixed languages
+        results = segmenter.segment_mixed_batch(texts)
 
         # Verify results
         assert isinstance(results, list)
         assert len(results) == 3
 
-        # All should be processed (even if not optimal for non-English text)
+        # All should be processed with appropriate language models
         assert all(isinstance(result, list) for result in results)
         assert all(len(result) > 0 for result in results)
+
+        # Test that segment_batch requires explicit language
+        # This should work (all English)
+        english_texts = ["English text.", "More English text."]
+        english_results = segmenter.segment_batch(english_texts, language="en")
+        assert len(english_results) == 2
 
     def test_model_limitations_documentation(self):
         """Test that model limitations are properly documented."""

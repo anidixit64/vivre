@@ -18,6 +18,10 @@ class Segmenter:
     This class provides methods to segment text into meaningful units
     using language detection and spaCy's sentence tokenization.
 
+    Batch Processing:
+    - segment_batch(): For single-language batches (requires explicit language)
+    - segment_mixed_batch(): For mixed-language batches (auto-detects languages)
+
     Note: Some languages (Arabic, Hindi, Thai) use a general-purpose multilingual
     model (xx_ent_wiki_sm) which may provide lower segmentation accuracy compared
     to dedicated language models. For higher accuracy with these languages, consider
@@ -26,10 +30,7 @@ class Segmenter:
 
     def __init__(self) -> None:
         """Initialize the Segmenter instance."""
-        self._models: dict[str, Language] = {}
-        self._model_names: dict[str, str] = (
-            {}
-        )  # Track which model is loaded for each language
+        self._models: dict[str, Language] = {}  # Cache by model_name only
         self._supported_languages = {
             "en": "en_core_web_sm",
             "es": "es_core_news_sm",
@@ -111,12 +112,7 @@ class Segmenter:
         # Check if this specific model is already loaded
         if model_name in self._models:
             # Model is already loaded, just update the mapping
-            self._model_names[lang_code] = model_name
             return self._models[model_name]
-
-        # Check if we already have a model loaded for this language
-        if lang_code in self._models:
-            return self._models[lang_code]
 
         # Load the model with only necessary components for sentence segmentation
         try:
@@ -133,7 +129,6 @@ class Segmenter:
                 model.add_pipe("sentencizer")
 
             self._models[model_name] = model
-            self._model_names[lang_code] = model_name
             return model
         except OSError:
             raise OSError(
@@ -187,9 +182,7 @@ class Segmenter:
 
         return sentences
 
-    def segment_batch(
-        self, texts: List[str], language: Optional[str] = None
-    ) -> List[List[str]]:
+    def segment_batch(self, texts: List[str], language: str) -> List[List[str]]:
         """
         Segment multiple texts into sentences using spaCy's optimized batch processing.
 
@@ -197,36 +190,31 @@ class Segmenter:
         making better use of multi-core CPUs and improving performance
         significantly for bulk tasks.
 
+        IMPORTANT: All texts in the batch must be of the same language.
+        Mixed-language batches are not supported and will result in incorrect
+        segmentation. Use separate batch calls for different languages.
+
         Args:
             texts: List of texts to segment.
-            language: Optional language code (e.g., 'en', 'es', 'fr').
-                     If provided, this language will be used for all texts.
-                     If None, language will be auto-detected for each text.
-                     User override takes precedence for maximum accuracy.
+            language: Language code (e.g., 'en', 'es', 'fr').
+                     All texts in the batch must be of this language.
 
         Returns:
             List of sentence segments for each input text.
 
         Raises:
             OSError: If the required spaCy model is not installed.
-            ValueError: If the language is not supported.
+            ValueError: If the language is not supported or if texts list is empty.
         """
         if not texts:
             return []
 
-        # Use user-provided language if available, otherwise auto-detect
-        if language is not None:
-            # Validate user-provided language
-            if not self.is_language_supported(language):
-                raise ValueError(f"Unsupported language: {language}")
-            detected_language = language
-        else:
-            # Auto-detect language for the first text as fallback
-            # Note: For mixed-language batches, consider processing separately
-            detected_language = self._detect_language(texts[0])
+        # Validate language parameter
+        if not self.is_language_supported(language):
+            raise ValueError(f"Unsupported language: {language}")
 
         # Load the appropriate spaCy model
-        nlp = self._load_model(detected_language)
+        nlp = self._load_model(language)
 
         # Process texts in batch using spaCy's optimized pipe method
         results = []
@@ -237,6 +225,61 @@ class Segmenter:
                 if sentence_text:
                     sentences.append(sentence_text)
             results.append(sentences)
+
+        return results
+
+    def segment_mixed_batch(self, texts: List[str]) -> List[List[str]]:
+        """
+        Segment multiple texts that may be in different languages.
+
+        This method automatically detects the language of each text and groups
+        them by language for efficient batch processing. This is the recommended
+        method for processing mixed-language text collections.
+
+        Args:
+            texts: List of texts to segment (can be in different languages).
+
+        Returns:
+            List of sentence segments for each input text, in the same order.
+
+        Raises:
+            OSError: If required spaCy models are not installed.
+            ValueError: If texts list is empty.
+        """
+        if not texts:
+            return []
+
+        # Group texts by detected language
+        language_groups: dict[str, list[tuple[int, str]]] = {}
+
+        for i, text in enumerate(texts):
+            if not text or not text.strip():
+                # Empty text - will be handled later
+                continue
+
+            detected_lang = self._detect_language(text)
+            if detected_lang not in language_groups:
+                language_groups[detected_lang] = []
+            language_groups[detected_lang].append((i, text))
+
+        # Initialize results list with empty lists
+        results: List[List[str]] = [[] for _ in texts]
+
+        # Process each language group separately
+        for lang_code, text_items in language_groups.items():
+            if not self.is_language_supported(lang_code):
+                # Fallback to English for unsupported languages
+                lang_code = "en"
+
+            # Extract just the texts for this language group
+            indices, lang_texts = zip(*text_items)
+
+            # Process this language group
+            lang_results = self.segment_batch(list(lang_texts), lang_code)
+
+            # Place results back in original positions
+            for idx, sentences in zip(indices, lang_results):
+                results[idx] = sentences
 
         return results
 

@@ -1,25 +1,28 @@
 # Vivre
 
-A Python library for machine learning and corpus linguistics.
+A Python library for parsing EPUB files and aligning parallel texts.
 
 ## Description
 
-Vivre provides tools for processing parallel texts through a complete pipeline: parsing EPUB files, segmenting text into sentences, and aligning sentences between languages using the Gale-Church algorithm.
+Vivre provides tools for processing parallel texts through a complete pipeline: parsing EPUB files, segmenting text into sentences, and aligning sentences between languages using the Gale-Church algorithm. The library offers both a simple API for programmatic use and a powerful command-line interface.
 
 ## Features
 
 - **EPUB Parsing**: Robust parsing with content filtering and chapter extraction
 - **Sentence Segmentation**: Multi-language sentence segmentation using spaCy
 - **Text Alignment**: Statistical text alignment using the Gale-Church algorithm
-- **Multiple Output Formats**: JSON, CSV, text, and dictionary formats
+- **Multiple Output Formats**: JSON, CSV, XML, text, and dictionary formats
 - **Language Support**: English, Spanish, French, German, Italian, Portuguese, and more
 - **Simple API**: Easy-to-use top-level functions for common tasks
+- **Command Line Interface**: Clean CLI with two powerful commands
+- **Error Handling**: Comprehensive error handling with helpful messages
+- **Type Safety**: Full type hints and validation
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.8 or higher
+- Python 3.11 or higher
 - pip (Python package installer)
 
 ### Installation
@@ -45,6 +48,37 @@ python -m spacy download fr_core_news_sm
 
 ## Usage
 
+### Command Line Interface
+
+Vivre provides a clean CLI with two powerful commands:
+
+```bash
+# Parse and analyze an EPUB file
+vivre parse book.epub --verbose
+
+# Parse with content display and segmentation
+vivre parse book.epub --show-content --segment --language en
+
+# Parse with custom output format
+vivre parse book.epub --format csv --output analysis.csv
+
+# Align two EPUB files (language pair is required)
+vivre align english.epub french.epub en-fr
+
+# Align with different output formats
+vivre align english.epub french.epub en-fr --format json
+vivre align english.epub french.epub en-fr --format csv --output alignments.csv
+vivre align english.epub french.epub en-fr --format xml --output alignments.xml
+
+# Align with custom parameters
+vivre align english.epub french.epub en-fr --c 1.1 --s2 7.0 --gap-penalty 2.5
+
+# Get help
+vivre --help
+vivre align --help
+vivre parse --help
+```
+
 ### Simple API
 
 Vivre provides easy-to-use top-level functions for common tasks:
@@ -54,65 +88,100 @@ import vivre
 
 # Parse EPUB and extract chapters
 chapters = vivre.read('path/to/epub')
-sentences = chapters.segment()
+print(f"Found {len(chapters)} chapters")
 
-# Align parallel texts with different outputs
-corpus = vivre.align('english.epub', 'french.epub', form='json')
-corpus_dict = vivre.align('english.epub', 'french.epub', form='dict')
-corpus_text = vivre.align('english.epub', 'french.epub', form='text')
-corpus_csv = vivre.align('english.epub', 'french.epub', form='csv')
+# Segment chapters into sentences
+segmented = chapters.segment('en')  # Specify language for better accuracy
+sentences = segmented.get_segmented()
+
+# Quick alignment - returns simple sentence pairs
+pairs = vivre.quick_align('english.epub', 'french.epub', 'en-fr')
+for source, target in pairs[:5]:
+    print(f"EN: {source}")
+    print(f"FR: {target}")
+
+# Full alignment with rich output
+result = vivre.align('english.epub', 'french.epub', 'en-fr')
+print(result.to_json())      # JSON output
+print(result.to_csv())       # CSV output
+print(result.to_text())      # Formatted text
+print(result.to_xml())       # XML output
+print(result.to_dict())      # Python dictionary
+
+# Work with Chapters objects seamlessly
+source_chapters = vivre.read('english.epub')
+target_chapters = vivre.read('french.epub')
+result = vivre.align(source_chapters, target_chapters, 'en-fr')  # Works with objects too!
+
+# Get supported languages
+languages = vivre.get_supported_languages()
+print(f"Supported languages: {languages}")
 ```
 
 ### Advanced Usage
 
-For more control, use the individual components:
+For more control, you can use the individual components:
 
 ```python
+from vivre import VivreParser, Segmenter, Aligner
+
+# Parse EPUB
+parser = VivreParser()
+chapters = parser.parse_epub('book.epub')
+
+# Segment text
+segmenter = Segmenter()
+sentences = segmenter.segment('Hello world!', 'en')
+
+# Align texts
+aligner = Aligner()
+alignments = aligner.align(['Hello'], ['Bonjour'])
+
+# Pipeline for complex workflows
 from vivre import VivrePipeline
-
-# Create pipeline with custom parameters
-pipeline = VivrePipeline("en-es", c=1.1, s2=7.0, gap_penalty=2.5)
-
-# Process parallel EPUBs
-alignments = pipeline.process_parallel_epubs(
-    "english_book.epub", "spanish_book.epub"
-)
-
-# Process text directly
-alignments = pipeline.process_parallel_texts(
-    "Hello world.", "Hola mundo."
-)
+pipeline = VivrePipeline('en-fr')
+result = pipeline.process_parallel_epubs('english.epub', 'french.epub')
 ```
 
-### Output Format
+## API Reference
 
-The JSON output format includes:
+### Top-level Functions
 
-```json
-{
-  "book_title": "Book Title",
-  "language_pair": "en-fr",
-  "chapters": {
-    "1": {
-      "title": "Chapter 1 Title",
-      "alignments": [
-        {
-          "en": "First sentence in English",
-          "fr": "Première phrase en français"
-        }
-      ]
-    }
-  }
-}
-```
+- `read(epub_path)` - Parse EPUB and return Chapters object
+- `align(source, target, language_pair)` - Align parallel texts, returns AlignmentResult
+- `quick_align(source_epub, target_epub, language_pair)` - Simple alignment, returns sentence pairs
+- `get_supported_languages()` - Get list of supported language codes
 
-## Contributing
+### Classes
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+- `Chapters` - Container for parsed EPUB chapters with segmentation support
+- `AlignmentResult` - Container for alignment results with multiple output formats
+- `VivreParser` - Low-level EPUB parser
+- `Segmenter` - Sentence segmentation using spaCy
+- `Aligner` - Text alignment using Gale-Church algorithm
+- `VivrePipeline` - High-level pipeline for complete workflows
+
+## Output Formats
+
+The library supports multiple output formats:
+
+- **JSON**: Structured data for programmatic use
+- **CSV**: Tabular data for spreadsheet applications
+- **XML**: Hierarchical data for document processing
+- **Text**: Human-readable formatted output
+- **Dict**: Python dictionary for direct manipulation
+
+## Language Support
+
+Vivre supports multiple languages through spaCy models:
+
+- English (`en_core_web_sm`)
+- Spanish (`es_core_news_sm`)
+- French (`fr_core_news_sm`)
+- German (`de_core_news_sm`)
+- Italian (`it_core_news_sm`)
+- Portuguese (`pt_core_news_sm`)
+- And more...
 
 ## Development
 
@@ -120,10 +189,14 @@ The JSON output format includes:
 
 ```bash
 # Run all tests
-python -m pytest
+pytest tests/
 
 # Run with coverage
-python -m pytest --cov=src/vivre --cov-report=html
+pytest tests/ --cov=vivre --cov-report=html
+
+# Run specific test files
+pytest tests/test_api.py
+pytest tests/test_parser.py
 ```
 
 ### Code Quality
@@ -134,16 +207,19 @@ The project uses pre-commit hooks for code quality:
 # Install pre-commit hooks
 pre-commit install
 
-# Run on all files
+# Run hooks manually
 pre-commit run --all-files
 ```
 
+### Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Ensure all tests pass and coverage remains >90%
+6. Submit a pull request
+
 ## License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- spaCy for natural language processing capabilities
-- The Gale-Church algorithm for text alignment
-- BeautifulSoup for HTML parsing
+This project is licensed under the MIT License - see the LICENSE file for details.

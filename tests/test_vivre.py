@@ -2,22 +2,12 @@
 Tests for the vivre package.
 """
 
-from vivre import __author__, __email__, __version__
+from vivre import __version__
 
 
 def test_version():
     """Test that version is defined."""
     assert __version__ == "0.1.0"
-
-
-def test_author():
-    """Test that author is defined."""
-    assert __author__ == "Aniket Dixit"
-
-
-def test_email():
-    """Test that email is defined."""
-    assert __email__ == "aniketdixit00.ani@gmail.com"
 
 
 def test_import():

@@ -8,6 +8,9 @@ packages = [
     {include = "vivre", from = "src"}
 ]
 
+[tool.poetry.scripts]
+vivre = "vivre.cli:app"
+
 [tool.poetry.dependencies]
 python = ">=3.11,<3.14"
 requests = "^2.32.4"
@@ -74,6 +77,35 @@ exclude_lines = [
     "if title == \"Untitled Chapter\" and text.strip\\(\\):",
     "if title and title != \"Untitled Chapter\":",
 ]
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["vivre"]
+
+[tool.safety]
+# Configure safety to be more resilient to network issues
+timeout = 30
+retries = 3
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
