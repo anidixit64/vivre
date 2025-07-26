@@ -40,6 +40,7 @@ bandit = "^1.7.5"
 safety = "^2.3.5"
 types-defusedxml = "^0.7"
 scipy-stubs = "^1.16.0.2"
+pytest-xdist = "^3.8.0"
 
 [tool.coverage.run]
 source = ["src/vivre"]
