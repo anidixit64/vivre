@@ -218,14 +218,18 @@ class Aligner:
         # Calculate two-tailed probability using normal distribution
         # P(|X| >= delta) = 2 * (1 - CDF(delta))
         if delta > 10:
-            # Very unlikely match
-            probability = 1e-10
+            # Very unlikely match - use a small but finite probability
+            probability = 1e-12
         else:
             # Use scipy's normal CDF for accurate calculation
-            probability = 2 * (1 - stats.norm.cdf(delta))
+            # Add epsilon to prevent numerical instability
+            probability = 2 * (1 - stats.norm.cdf(delta)) + 1e-12
 
         # Convert probability to cost (negative log probability)
-        cost = -math.log(probability) if probability > 0 else 100.0
+        # Ensure probability is never exactly zero to prevent infinite cost
+        # Also ensure probability doesn't exceed 1 to prevent negative cost
+        probability = min(probability, 1.0 - 1e-12)
+        cost = -math.log(probability)
 
         return cost
 
@@ -238,10 +242,16 @@ class Aligner:
         """
         # Convert gap penalty (in standard deviations) to two-tailed probability
         # A gap penalty of 3.0 means the cost is equivalent to a 3-sigma deviation
-        probability = 2 * (1 - stats.norm.cdf(self.gap_penalty))
+        # Add epsilon to prevent numerical instability
+        probability = 2 * (1 - stats.norm.cdf(self.gap_penalty)) + 1e-12
 
         # Convert to cost
-        return -math.log(probability) if probability > 0 else 100.0
+        # Ensure probability is never exactly zero to prevent infinite cost
+        # Also ensure probability doesn't exceed 1 to prevent negative cost
+        probability = min(probability, 1.0 - 1e-12)
+        cost = -math.log(probability)
+
+        return cost
 
     def _reconstruct_alignment(
         self, backtrack: List[List], m: int, n: int
