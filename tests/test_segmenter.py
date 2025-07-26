@@ -664,8 +664,9 @@ class TestSegmenter:
         mock_model.return_value = mock_doc
 
         # Test languages with installed models - mock both language detection and model loading
-        with patch.object(segmenter, "_detect_language") as mock_detect, patch.object(
-            segmenter, "_load_model", return_value=mock_model
+        with (
+            patch.object(segmenter, "_detect_language") as mock_detect,
+            patch.object(segmenter, "_load_model", return_value=mock_model),
         ):
 
             # Test English
