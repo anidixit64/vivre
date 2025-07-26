@@ -424,10 +424,10 @@ class VivreParser:
                 container_root = ET.fromstring(container_xml)
 
                 # Extract the path to the content.opf file
-                rootfile_elem = container_root.find(
-                    './/container:rootfile[@media-type="application/oebps-package+xml"]',
-                    NAMESPACES,
+                selector = (
+                    './/container:rootfile[@media-type="application/oebps-package+xml"]'
                 )
+                rootfile_elem = container_root.find(selector, NAMESPACES)
                 if rootfile_elem is None:
                     raise ValueError("Could not find content.opf in container.xml")
 
@@ -483,7 +483,7 @@ class VivreParser:
                     if not href:
                         continue
 
-                    # Skip non-story content based on href pattern - now with explicit language
+                    # Skip non-story content based on href pattern
                     if self._is_non_story_content("", href, book_language):
                         continue
 
