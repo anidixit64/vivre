@@ -102,6 +102,11 @@ multi_line_output = 3
 line_length = 88
 known_first_party = ["vivre"]
 
+[tool.safety]
+# Configure safety to be more resilient to network issues
+timeout = 30
+retries = 3
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
