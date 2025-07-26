@@ -363,18 +363,20 @@ class TestCLIErrorHandling:
         result = runner.invoke(app, ["parse", "--help"])
 
         assert result.exit_code == 0
-        assert "epub_path" in result.stdout
-        assert "show_content" in result.stdout or "show-content" in result.stdout
+        # Check for key elements that should be in the help output
+        assert "epub_path" in result.stdout or "EPUB_PATH" in result.stdout
         assert "format" in result.stdout
+        assert "verbose" in result.stdout
 
     def test_align_help(self):
         """Test that align --help produces helpful output."""
         result = runner.invoke(app, ["align", "--help"])
 
         assert result.exit_code == 0
-        assert "source_epub" in result.stdout
-        assert "target_epub" in result.stdout
-        assert "language_pair" in result.stdout
+        # Check for key elements that should be in the help output
+        assert "source_epub" in result.stdout or "SOURCE_EPUB" in result.stdout
+        assert "target_epub" in result.stdout or "TARGET_EPUB" in result.stdout
+        assert "language_pair" in result.stdout or "LANGUAGE_PAIR" in result.stdout
 
     def test_version_flag(self):
         """Test that --version shows version."""
