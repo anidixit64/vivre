@@ -55,6 +55,7 @@ from .api import (
     AlignmentResult,
     Chapters,
     align,
+    clear_pipeline_cache,
     get_supported_languages,
     quick_align,
     read,
@@ -77,4 +78,5 @@ __all__ = [
     "align",
     "quick_align",
     "get_supported_languages",
+    "clear_pipeline_cache",
 ]

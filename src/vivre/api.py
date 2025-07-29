@@ -16,6 +16,10 @@ from .integration import VivrePipeline
 from .parser import VivreParser
 from .segmenter import Segmenter
 
+# Keep a global pipeline instance to be reused by the API functions
+# This is a simple way to speed up consecutive API calls in a single script run.
+_pipeline_cache: Dict[str, VivrePipeline] = {}
+
 
 class AlignmentResult:
     """
@@ -166,6 +170,7 @@ def align(
     target: Union[str, Path, Chapters],
     language_pair: str,
     method: str = "gale-church",
+    _pipeline: Optional[VivrePipeline] = None,  # Add this parameter
     **kwargs: Any,
 ) -> AlignmentResult:
     """
@@ -180,6 +185,7 @@ def align(
         target: Target language EPUB file path or Chapters object
         language_pair: Language pair code (e.g., "en-fr", "es-en") - REQUIRED
         method: Alignment method (currently only "gale-church" supported)
+        _pipeline: Optional pre-existing VivrePipeline instance for dependency injection
         **kwargs: Additional arguments passed to the pipeline
 
     Returns:
@@ -201,6 +207,13 @@ def align(
         >>> result = vivre.align(source_chapters, target_chapters, 'en-fr')
         >>> print(result.to_text())
 
+        # Using dependency injection for better performance
+        >>> pipeline = VivrePipeline('en-fr')
+        >>> result = vivre.align(
+        ...     source_chapters, target_chapters, 'en-fr', _pipeline=pipeline
+        ... )
+        >>> print(result.to_dict())
+
         # Get as dictionary for programmatic access
         >>> data = result.to_dict()
         >>> print(f"Found {len(data['chapters'])} chapters")
@@ -221,14 +234,20 @@ def align(
     source_chapters, source_title = _parse_source_or_chapters(source, "source")
     target_chapters, target_title = _parse_source_or_chapters(target, "target")
 
-    # Create pipeline and process
+    # Use the provided pipeline or get one from the cache/create a new one
+    pipeline = _pipeline
+    if pipeline is None:
+        # Simple cache key
+        cache_key = f"{language_pair}-{json.dumps(kwargs, sort_keys=True)}"
+        if cache_key not in _pipeline_cache:
+            _pipeline_cache[cache_key] = VivrePipeline(language_pair, **kwargs)
+        pipeline = _pipeline_cache[cache_key]
+
+    # Get book title (prefer source title, fallback to target)
+    book_title = source_title or target_title
+
+    # Process chapters and create aligned corpus
     try:
-        pipeline = VivrePipeline(language_pair, **kwargs)
-
-        # Get book title (prefer source title, fallback to target)
-        book_title = source_title or target_title
-
-        # Process chapters and create aligned corpus
         aligned_corpus = _create_aligned_corpus(
             source_chapters, target_chapters, pipeline, book_title, language_pair
         )
@@ -301,6 +320,18 @@ def get_supported_languages() -> List[str]:
     """
     segmenter = Segmenter()
     return list(segmenter._supported_languages.keys())
+
+
+def clear_pipeline_cache() -> None:
+    """
+    Clear the pipeline cache.
+
+    This is useful for testing or when you want to free up memory.
+
+    Example:
+        >>> vivre.clear_pipeline_cache()
+    """
+    _pipeline_cache.clear()
 
 
 def _create_aligned_corpus(
