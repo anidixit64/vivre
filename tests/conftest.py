@@ -60,3 +60,13 @@ def default_pipeline() -> VivrePipeline:
     """A session-scoped fixture for the default en-es pipeline."""
     print("\n--- Initializing VivrePipeline (once per session) ---")
     return VivrePipeline("en-es")
+
+
+@pytest.fixture(scope="session")
+def epub_path() -> Path:
+    """A session-scoped fixture for a single EPUB file (for CLI tests)."""
+    return (
+        Path(__file__).parent
+        / "data"
+        / "Vacation Under the Volcano - Mary Pope Osborne.epub"
+    )

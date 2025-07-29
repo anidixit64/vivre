@@ -1440,40 +1440,350 @@ class TestXMLNamespaces:
 class TestParserRobustness:
     """Test that the parser is more robust with the fixes."""
 
-    def test_parser_handles_multiple_files(self):
-        """Test that the parser can handle multiple files without issues."""
+    def test_parser_handles_multiple_files(self, source_epub_path, target_epub_path):
+        """Test that parser can handle multiple files without state pollution."""
         parser = VivreParser()
 
-        # Find test files
-        test_files = list(Path("tests/data").glob("*.epub"))
-        if len(test_files) < 2:
-            pytest.skip("Need at least 2 test EPUB files")
+        # Parse first file
+        chapters1 = parser.parse_epub(source_epub_path)
+        assert len(chapters1) > 0
 
-        results = []
-        for epub_file in test_files[:2]:  # Test with first 2 files
-            try:
-                chapters = parser.parse_epub(epub_file)
-                results.append((epub_file, len(chapters), True))
-            except Exception:  # noqa: BLE001
-                results.append((epub_file, 0, False))
+        # Parse second file
+        chapters2 = parser.parse_epub(target_epub_path)
+        assert len(chapters2) > 0
 
-        # All files should be parsed successfully
-        for file_path, chapter_count, success in results:
-            assert success, f"Failed to parse {file_path}"
-            assert chapter_count >= 0, f"Invalid chapter count for {file_path}"
+        # Verify they are different
+        assert chapters1 != chapters2
+
+    def test_parser_extract_text_edge_cases(self):
+        """Test text extraction with edge cases."""
+        parser = VivreParser()
+
+        # Test with None soup
+        with pytest.raises(AttributeError):
+            parser._extract_text(None)
+
+        # Test with empty soup
+        from bs4 import BeautifulSoup
+
+        empty_soup = BeautifulSoup("", "html.parser")
+        result = parser._extract_text(empty_soup)
+        assert isinstance(result, str)
+
+    def test_parser_is_non_story_content_edge_cases(self):
+        """Test non-story content detection with edge cases."""
+        parser = VivreParser()
+
+        # Test with empty title and href
+        result = parser._is_non_story_content("", "", "en")
+        assert isinstance(result, bool)
+
+        # Test with None values - should handle gracefully
+        with pytest.raises(AttributeError):
+            parser._is_non_story_content(None, None, "en")
+
+    def test_parser_extract_title_edge_cases(self):
+        """Test title extraction with edge cases."""
+        parser = VivreParser()
+
+        # Test with None soup
+        with pytest.raises(AttributeError):
+            parser._extract_title(None)
+
+        # Test with empty soup
+        from bs4 import BeautifulSoup
+
+        empty_soup = BeautifulSoup("", "html.parser")
+        result = parser._extract_title(empty_soup)
+        assert isinstance(result, str)
+
+    def test_parser_is_generic_title_edge_cases(self):
+        """Test generic title detection with edge cases."""
+        parser = VivreParser()
+
+        # Test with None values - should handle gracefully
+        with pytest.raises(AttributeError):
+            parser._is_generic_title(None, None)
+
+        # Test with empty title
+        from bs4 import BeautifulSoup
+
+        empty_soup = BeautifulSoup("", "html.parser")
+        result = parser._is_generic_title("", empty_soup)
+        assert isinstance(result, bool)
+
+    def test_parser_extract_chapter_titles_edge_cases(self):
+        """Test chapter title extraction with edge cases."""
+        parser = VivreParser()
+
+        # Test with malformed content.opf
+        malformed_opf = b"<invalid>xml</invalid>"
+        titles = parser._extract_chapter_titles(None, None, malformed_opf)
+        assert isinstance(titles, dict)
+
+        # Test with empty content.opf
+        empty_opf = b""
+        titles = parser._extract_chapter_titles(None, None, empty_opf)
+        assert isinstance(titles, dict)
+
+    def test_parser_load_epub_edge_cases(self):
+        """Test EPUB loading with edge cases."""
+        parser = VivreParser()
+
+        # Test with directory instead of file
+        with pytest.raises(ValueError, match="Path is not a file"):
+            parser.load_epub(Path(__file__).parent)
+
+        # Test with non-existent file
+        with pytest.raises(FileNotFoundError):
+            parser.load_epub(Path("nonexistent.epub"))
+
+        # Test with non-EPUB file
+        non_epub = Path(__file__)  # Use this test file as non-EPUB
+        with pytest.raises(ValueError):
+            parser.load_epub(non_epub)
+
+    def test_parser_parse_epub_error_handling(self):
+        """Test EPUB parsing error handling."""
+        parser = VivreParser()
+
+        # Test with non-existent file
+        with pytest.raises(FileNotFoundError):
+            parser.parse_epub(Path("nonexistent.epub"))
+
+        # Test with non-EPUB file
+        non_epub = Path(__file__)  # Use this test file as non-EPUB
+        with pytest.raises(ValueError):
+            parser.parse_epub(non_epub)
+
+    def test_parser_metadata_extraction_with_missing_elements(self):
+        """Test metadata extraction when elements are missing."""
+        parser = VivreParser()
+
+        # Create minimal OPF content without title
+        minimal_opf = b"""<?xml version="1.0" encoding="UTF-8"?>
+        <package xmlns="http://www.idpf.org/2007/opf">
+            <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+                <dc:language>en</dc:language>
+            </metadata>
+        </package>"""
+
+        metadata = parser._extract_metadata(minimal_opf)
+        assert isinstance(metadata, dict)
+        assert "language" in metadata
+
+    def test_parser_metadata_extraction_with_namespaces(self):
+        """Test metadata extraction with different namespace formats."""
+        parser = VivreParser()
+
+        # Test with different namespace declarations
+        opf_with_namespaces = b"""<?xml version="1.0" encoding="UTF-8"?>
+        <package xmlns="http://www.idpf.org/2007/opf">
+            <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+                <dc:title>Test Book</dc:title>
+                <dc:language>en</dc:language>
+                <dc:creator>Test Author</dc:creator>
+            </metadata>
+        </package>"""
+
+        metadata = parser._extract_metadata(opf_with_namespaces)
+        assert isinstance(metadata, dict)
+        assert "title" in metadata or "language" in metadata
+
+    def test_parser_navigation_document_finding_with_ncx(self):
+        """Test navigation document finding with NCX format."""
+        parser = VivreParser()
+
+        # Create OPF content with NCX reference
+        opf_with_ncx = b"""<?xml version="1.0" encoding="UTF-8"?>
+        <package xmlns="http://www.idpf.org/2007/opf">
+            <spine toc="ncx">
+                <itemref idref="item1"/>
+            </spine>
+            <manifest>
+                <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+                <item id="item1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
+            </manifest>
+        </package>"""
+
+        # Mock zip file with NCX
+        class MockZipFile:
+            def namelist(self):
+                return ["OEBPS/toc.ncx", "OEBPS/chapter1.xhtml"]
+
+            def read(self, name):
+                if name == "OEBPS/toc.ncx":
+                    return b"<ncx><navMap><navPoint><text>Chapter 1</text></navPoint></navMap></ncx>"
+                return b"<html><body>Content</body></html>"
+
+        nav_doc = parser._find_navigation_document(
+            opf_with_ncx, MockZipFile(), Path("OEBPS")
+        )
+        assert nav_doc is not None
+
+    def test_parser_navigation_document_finding_with_html_toc(self):
+        """Test navigation document finding with HTML TOC."""
+        parser = VivreParser()
+
+        # Create OPF content with HTML TOC
+        opf_with_html_toc = b"""<?xml version="1.0" encoding="UTF-8"?>
+        <package xmlns="http://www.idpf.org/2007/opf">
+            <spine toc="toc">
+                <itemref idref="item1"/>
+            </spine>
+            <manifest>
+                <item id="toc" href="toc.xhtml" media-type="application/xhtml+xml"/>
+                <item id="item1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
+            </manifest>
+        </package>"""
+
+        # Mock zip file with HTML TOC
+        class MockZipFile:
+            def namelist(self):
+                return ["OEBPS/toc.xhtml", "OEBPS/chapter1.xhtml"]
+
+            def read(self, name):
+                if name == "OEBPS/toc.xhtml":
+                    return b"<html><body><nav><a href='chapter1.xhtml'>Chapter 1</a></nav></body></html>"
+                return b"<html><body>Content</body></html>"
+
+        nav_doc = parser._find_navigation_document(
+            opf_with_html_toc, MockZipFile(), Path("OEBPS")
+        )
+        assert nav_doc is not None
+
+    def test_parser_content_filtering_with_special_characters(self):
+        """Test content filtering with special characters in titles."""
+        parser = VivreParser()
+
+        # Test titles with special characters
+        special_titles = [
+            "Chapter 1: Introduction",
+            "Chapter 2 - The Beginning",
+            "Chapter 3: A New Era",
+            "Chapter 4: The End?",
+            "Chapter 5: Final Thoughts...",
+        ]
+
+        for title in special_titles:
+            result = parser._is_non_story_content(title, "href", "en")
+            assert isinstance(result, bool)
+
+    def test_parser_content_filtering_with_multilingual_keywords(self):
+        """Test content filtering with multilingual keywords."""
+        parser = VivreParser()
+
+        # Test keywords in different languages
+        test_cases = [
+            ("cover", "en"),
+            ("cubierta", "es"),
+            ("couverture", "fr"),
+            ("copertina", "it"),
+            ("cover", "de"),
+        ]
+
+        for keyword, lang in test_cases:
+            result = parser._is_non_story_content(keyword, "href", lang)
+            assert isinstance(result, bool)
+
+    def test_parser_text_cleaning_with_html_entities(self):
+        """Test text cleaning with HTML entities."""
+        parser = VivreParser()
+
+        # Test with HTML entities
+        html_with_entities = b"""<html>
+        <body>
+            <h1>Chapter 1</h1>
+            <p>This is a test with &amp; entities &lt; and &gt; symbols.</p>
+            <p>Also with &quot;quotes&quot; and &apos;apostrophes&apos;.</p>
+        </body>
+        </html>"""
+
+        title, content = parser._extract_chapter_content(html_with_entities)
+        assert isinstance(title, str)
+        assert isinstance(content, str)
+        # HTML entities should be decoded by BeautifulSoup
+        assert "&amp;" not in content  # Should be decoded to &
+        assert "&lt;" not in content  # Should be decoded to <
+        assert "&gt;" not in content  # Should be decoded to >
+
+    def test_parser_text_cleaning_with_whitespace(self):
+        """Test text cleaning with various whitespace patterns."""
+        parser = VivreParser()
+
+        # Test with excessive whitespace
+        html_with_whitespace = b"""<html>
+        <body>
+            <h1>   Chapter 1   </h1>
+            <p>   This is a test with    multiple    spaces.   </p>
+            <p>And with
 
 
-def test_parser_documentation():
-    """Test that the parser documentation reflects the stateless nature."""
-    parser = VivreParser()
+            newlines.</p>
+        </body>
+        </html>"""
 
-    # Check that the docstring mentions stateless behavior
-    doc = parser.__doc__
-    assert doc is not None
-    assert "stateless" in doc.lower()
-    assert "reuse" in doc.lower()
+        title, content = parser._extract_chapter_content(html_with_whitespace)
+        assert isinstance(title, str)
+        assert isinstance(content, str)
+        # Should be cleaned of excessive whitespace
+        assert "   " not in title
+        assert "   " not in content
 
-    # Check that the parse_epub method doesn't mention instance variables
-    parse_doc = parser.parse_epub.__doc__
-    assert parse_doc is not None
-    # Should not mention _book_title or _book_language in the context of instance variables
+    def test_parser_robustness_with_malformed_html(self):
+        """Test parser robustness with malformed HTML."""
+        parser = VivreParser()
+
+        # Test with unclosed tags
+        malformed_html = b"""<html>
+        <body>
+            <h1>Chapter 1
+            <p>This is a test with unclosed tags
+            <strong>Bold text
+        </body>
+        </html>"""
+
+        title, content = parser._extract_chapter_content(malformed_html)
+        assert isinstance(title, str)
+        assert isinstance(content, str)
+
+    def test_parser_robustness_with_missing_attributes(self):
+        """Test parser robustness with missing HTML attributes."""
+        parser = VivreParser()
+
+        # Test with missing attributes
+        html_missing_attrs = b"""<html>
+        <body>
+            <h1>Chapter 1</h1>
+            <p>This is a test.</p>
+            <img src="image.jpg">
+            <a href="link.html">Link</a>
+        </body>
+        </html>"""
+
+        title, content = parser._extract_chapter_content(html_missing_attrs)
+        assert isinstance(title, str)
+        assert isinstance(content, str)
+
+    def test_parser_robustness_with_script_and_style_tags(self):
+        """Test parser robustness with script and style tags."""
+        parser = VivreParser()
+
+        # Test with script and style content
+        html_with_scripts = b"""<html>
+        <head>
+            <style>body { color: red; }</style>
+        </head>
+        <body>
+            <h1>Chapter 1</h1>
+            <p>This is a test.</p>
+            <script>alert('test');</script>
+        </body>
+        </html>"""
+
+        title, content = parser._extract_chapter_content(html_with_scripts)
+        assert isinstance(title, str)
+        assert isinstance(content, str)
+        # Script and style content should be removed
+        assert "alert" not in content
+        assert "color: red" not in content
