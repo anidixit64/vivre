@@ -42,9 +42,9 @@ class TestParser:
         # Check if file was loaded successfully
         assert result is True, "EPUB should be loaded successfully"
         assert parser.is_loaded(), "Parser should indicate file is loaded"
-        assert (
-            parser.file_path == test_file_path
-        ), "Parser should store the correct file path"
+        assert parser.file_path == test_file_path, (
+            "Parser should store the correct file path"
+        )
 
     def test_load_spanish_epub(self):
         """Test loading the Spanish EPUB file."""
@@ -66,9 +66,9 @@ class TestParser:
         # Check if file was loaded successfully
         assert result is True, "EPUB should be loaded successfully"
         assert parser.is_loaded(), "Parser should indicate file is loaded"
-        assert (
-            parser.file_path == test_file_path
-        ), "Parser should store the correct file path"
+        assert parser.file_path == test_file_path, (
+            "Parser should store the correct file path"
+        )
 
     def test_load_nonexistent_file(self):
         """Test that loading a nonexistent file raises FileNotFoundError."""
@@ -164,7 +164,7 @@ class TestParser:
             # Skip text length check for cover/title pages
             if "cover" not in title.lower() and "title" not in title.lower():
                 assert len(text) > 0, f"chapter {i} text should not be empty"
-            print(f"Chapter {i+1}: {title[:50]}...")
+            print(f"Chapter {i + 1}: {title[:50]}...")
             print(f"Text length: {len(text)} characters")
 
     def test_extract_chapter_content_fallback(self):
@@ -367,9 +367,9 @@ class TestParser:
         try:
             # Empty idrefs are skipped, so this should return an empty list
             chapters = parser.parse_epub(Path(tmp_file.name))
-            assert (
-                chapters == []
-            ), "Should return empty list when all itemrefs have empty idrefs"
+            assert chapters == [], (
+                "Should return empty list when all itemrefs have empty idrefs"
+            )
         finally:
             os.unlink(tmp_file.name)
 
@@ -515,7 +515,7 @@ class TestParser:
             # Skip text length check for cover/title pages
             if "cover" not in title.lower() and "title" not in title.lower():
                 assert len(text) > 0, f"chapter {i} text should not be empty"
-            print(f"Chapter {i+1}: {title[:50]}...")
+            print(f"Chapter {i + 1}: {title[:50]}...")
             print(f"Text length: {len(text)} characters")
 
     def test_parse_epub_error_handling(self):
@@ -857,7 +857,7 @@ class TestParser:
             # Verify the text contains story content (not just metadata)
             assert len(text) > 100, f"chapter {i} should have substantial text content"
 
-            print(f"Chapter {i+1}: {title}")
+            print(f"Chapter {i + 1}: {title}")
             print(f"Text length: {len(text)} characters")
             print(f"Text preview: {text[:100]}...")
 
@@ -892,7 +892,7 @@ class TestParser:
             # Verify the text contains story content (not just metadata)
             assert len(text) > 100, f"chapter {i} should have substantial text content"
 
-            print(f"Chapter {i+1}: {title}")
+            print(f"Chapter {i + 1}: {title}")
             print(f"Text length: {len(text)} characters")
             print(f"Text preview: {text[:100]}...")
 
@@ -933,9 +933,9 @@ class TestParser:
         ]
 
         for title in non_story_titles:
-            assert (
-                parser._is_non_story_content(title, "test.xhtml", "en") is True
-            ), f"Should filter out: {title}"
+            assert parser._is_non_story_content(title, "test.xhtml", "en") is True, (
+                f"Should filter out: {title}"
+            )
 
         # Test story content titles that should NOT be filtered out
         story_titles = [
@@ -985,12 +985,12 @@ class TestParser:
 
             # Verify all chapters have substantial content
             for i, (title, text) in enumerate(chapters):
-                assert (
-                    len(title) > 0
-                ), f"Chapter {i} title should not be empty in {filename}"
-                assert (
-                    len(text) > 100
-                ), f"Chapter {i} should have substantial text in {filename}"
+                assert len(title) > 0, (
+                    f"Chapter {i} title should not be empty in {filename}"
+                )
+                assert len(text) > 100, (
+                    f"Chapter {i} should have substantial text in {filename}"
+                )
 
                 # Verify the title doesn't contain non-story keywords
                 title_lower = title.lower()
@@ -1397,18 +1397,18 @@ class TestImprovedFiltering:
         result1 = parser._is_non_story_content(
             title="Chapter 1: The Beginning", href="copyright.xhtml", book_language="en"
         )
-        assert (
-            result1 is True
-        ), "copyright.xhtml should be filtered despite story-like title"
+        assert result1 is True, (
+            "copyright.xhtml should be filtered despite story-like title"
+        )
 
         # Test case 2: File with story-like href but non-story title
         # This should NOT be filtered out (href takes priority)
         result2 = parser._is_non_story_content(
             title="Important Notice", href="chapter01.xhtml", book_language="en"
         )
-        assert (
-            result2 is False
-        ), "chapter01.xhtml should not be filtered despite non-story title"
+        assert result2 is False, (
+            "chapter01.xhtml should not be filtered despite non-story title"
+        )
 
         # Test case 3: File with non-story href and non-story title
         # This should be filtered out

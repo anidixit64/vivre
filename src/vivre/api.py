@@ -422,16 +422,16 @@ def _format_as_xml(corpus: Dict[str, Any]) -> str:
     xml_lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         "<alignments>",
-        f'  <book_title>{corpus["book_title"]}</book_title>',
-        f'  <language_pair>{corpus["language_pair"]}</language_pair>',
-        f'  <total_alignments>{len(corpus["chapters"])}</total_alignments>',
+        f"  <book_title>{corpus['book_title']}</book_title>",
+        f"  <language_pair>{corpus['language_pair']}</language_pair>",
+        f"  <total_alignments>{len(corpus['chapters'])}</total_alignments>",
     ]
 
     for chapter_num, chapter_data in corpus["chapters"].items():
         xml_lines.extend(
             [
                 f'  <chapter number="{chapter_num}">',
-                f'    <title>{chapter_data["title"]}</title>',
+                f"    <title>{chapter_data['title']}</title>",
                 "    <alignments>",
             ]
         )

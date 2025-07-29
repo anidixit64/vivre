@@ -264,22 +264,22 @@ def _format_alignments_as_xml(output_data: dict) -> str:
     xml_lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         "<alignments>",
-        f'  <book_title>{output_data["book_title"]}</book_title>',
-        f'  <language_pair>{output_data["language_pair"]}</language_pair>',
-        f'  <method>{output_data["method"]}</method>',
-        f'  <source_epub>{output_data["source_epub"]}</source_epub>',
-        f'  <target_epub>{output_data["target_epub"]}</target_epub>',
-        f'  <total_alignments>{output_data["total_alignments"]}</total_alignments>',
+        f"  <book_title>{output_data['book_title']}</book_title>",
+        f"  <language_pair>{output_data['language_pair']}</language_pair>",
+        f"  <method>{output_data['method']}</method>",
+        f"  <source_epub>{output_data['source_epub']}</source_epub>",
+        f"  <target_epub>{output_data['target_epub']}</target_epub>",
+        f"  <total_alignments>{output_data['total_alignments']}</total_alignments>",
     ]
 
     for alignment in output_data["alignments"]:
         xml_lines.extend(
             [
                 f'  <alignment id="{alignment["id"]}">',
-                f'    <source>{alignment["source"]}</source>',
-                f'    <target>{alignment["target"]}</target>',
-                f'    <source_length>{alignment["source_length"]}</source_length>',
-                f'    <target_length>{alignment["target_length"]}</target_length>',
+                f"    <source>{alignment['source']}</source>",
+                f"    <target>{alignment['target']}</target>",
+                f"    <source_length>{alignment['source_length']}</source_length>",
+                f"    <target_length>{alignment['target_length']}</target_length>",
                 "</alignment>",
             ]
         )
@@ -560,33 +560,33 @@ def _format_parse_as_xml(output_data: dict) -> str:
     xml_lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         "<epub_parse>",
-        f'  <file_path>{output_data["file_path"]}</file_path>',
-        f'  <book_title>{output_data["book_title"]}</book_title>',
-        f'  <book_author>{output_data["book_author"]}</book_author>',
-        f'  <book_language>{output_data["book_language"]}</book_language>',
-        f'  <chapter_count>{output_data["chapter_count"]}</chapter_count>',
+        f"  <file_path>{output_data['file_path']}</file_path>",
+        f"  <book_title>{output_data['book_title']}</book_title>",
+        f"  <book_author>{output_data['book_author']}</book_author>",
+        f"  <book_language>{output_data['book_language']}</book_language>",
+        f"  <chapter_count>{output_data['chapter_count']}</chapter_count>",
         "  <chapters>",
     ]
 
     for chapter in output_data["chapters"]:
         char_count_line = (
-            f'      <character_count>{chapter["character_count"]}</character_count>'
+            f"      <character_count>{chapter['character_count']}</character_count>"
         )
         xml_lines.extend(
             [
                 f'    <chapter number="{chapter["number"]}">',
-                f'      <title>{chapter["title"]}</title>',
-                f'      <word_count>{chapter["word_count"]}</word_count>',
+                f"      <title>{chapter['title']}</title>",
+                f"      <word_count>{chapter['word_count']}</word_count>",
                 char_count_line,
             ]
         )
 
         if "content_preview" in chapter:
             xml_lines.append(
-                f'      <content_preview>{chapter["content_preview"]}</content_preview>'
+                f"      <content_preview>{chapter['content_preview']}</content_preview>"
             )
         elif "content" in chapter:
-            xml_lines.append(f'      <content>{chapter["content"]}</content>')
+            xml_lines.append(f"      <content>{chapter['content']}</content>")
 
         xml_lines.append("    </chapter>")
 

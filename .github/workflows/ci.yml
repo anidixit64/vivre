@@ -1,3 +1,4 @@
+# .github/workflows/ci.yml
 name: CI/CD Pipeline
 
 on:
@@ -51,11 +52,18 @@ jobs:
         poetry run python -m spacy download fr_core_news_sm
         poetry run python -m spacy download it_core_news_sm
 
+    # --- THIS STEP IS UPDATED ---
     - name: Run linter and formatter checks
       run: |
-        poetry run black --check --diff src/ tests/ examples/
-        poetry run ruff check . --ignore E501
+        # Check if code is formatted correctly with Ruff's formatter.
+        # This replaces the `black --check` command.
         poetry run ruff format --check .
+
+        # Check for linting errors with Ruff.
+        # This replaces flake8 and isort.
+        # The E501 (line-too-long) rule is handled by the formatter,
+        # so ignoring it here is good practice.
+        poetry run ruff check . --ignore E501
 
     - name: Run static type analysis
       run: poetry run mypy src/ tests/

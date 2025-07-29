@@ -37,18 +37,18 @@ class TestAligner:
         source_seg1, target_seg1 = alignment[0]
         source_seg2, target_seg2 = alignment[1]
 
-        assert (
-            source_seg1 == "Hello world."
-        ), "First source segment should be 'Hello world.'"
-        assert (
-            target_seg1 == "Hello world."
-        ), "First target segment should be 'Hello world.'"
-        assert (
-            source_seg2 == "How are you today?"
-        ), "Second source segment should be 'How are you today?'"
-        assert (
-            target_seg2 == "How are you today?"
-        ), "Second target segment should be 'How are you today?'"
+        assert source_seg1 == "Hello world.", (
+            "First source segment should be 'Hello world.'"
+        )
+        assert target_seg1 == "Hello world.", (
+            "First target segment should be 'Hello world.'"
+        )
+        assert source_seg2 == "How are you today?", (
+            "Second source segment should be 'How are you today?'"
+        )
+        assert target_seg2 == "How are you today?", (
+            "Second target segment should be 'How are you today?'"
+        )
 
     def test_align_perfect_match_spanish(self):
         """Test alignment of perfectly matched Spanish text."""
@@ -66,18 +66,18 @@ class TestAligner:
         source_seg1, target_seg1 = alignment[0]
         source_seg2, target_seg2 = alignment[1]
 
-        assert (
-            source_seg1 == "Hola mundo."
-        ), "First source segment should be 'Hola mundo.'"
-        assert (
-            target_seg1 == "Hola mundo."
-        ), "First target segment should be 'Hola mundo.'"
-        assert (
-            source_seg2 == "¿Cómo estás hoy?"
-        ), "Second source segment should be '¿Cómo estás hoy?'"
-        assert (
-            target_seg2 == "¿Cómo estás hoy?"
-        ), "Second target segment should be '¿Cómo estás hoy?'"
+        assert source_seg1 == "Hola mundo.", (
+            "First source segment should be 'Hola mundo.'"
+        )
+        assert target_seg1 == "Hola mundo.", (
+            "First target segment should be 'Hola mundo.'"
+        )
+        assert source_seg2 == "¿Cómo estás hoy?", (
+            "Second source segment should be '¿Cómo estás hoy?'"
+        )
+        assert target_seg2 == "¿Cómo estás hoy?", (
+            "Second target segment should be '¿Cómo estás hoy?'"
+        )
 
     def test_align_perfect_match_french(self):
         """Test alignment of perfectly matched French text."""
@@ -95,18 +95,18 @@ class TestAligner:
         source_seg1, target_seg1 = alignment[0]
         source_seg2, target_seg2 = alignment[1]
 
-        assert (
-            source_seg1 == "Bonjour le monde."
-        ), "First source segment should be 'Bonjour le monde.'"
-        assert (
-            target_seg1 == "Bonjour le monde."
-        ), "First target segment should be 'Bonjour le monde.'"
-        assert (
-            source_seg2 == "Comment allez-vous aujourd'hui?"
-        ), "Second source segment should be 'Comment allez-vous aujourd'hui?'"
-        assert (
-            target_seg2 == "Comment allez-vous aujourd'hui?"
-        ), "Second target segment should be 'Comment allez-vous aujourd'hui?'"
+        assert source_seg1 == "Bonjour le monde.", (
+            "First source segment should be 'Bonjour le monde.'"
+        )
+        assert target_seg1 == "Bonjour le monde.", (
+            "First target segment should be 'Bonjour le monde.'"
+        )
+        assert source_seg2 == "Comment allez-vous aujourd'hui?", (
+            "Second source segment should be 'Comment allez-vous aujourd'hui?'"
+        )
+        assert target_seg2 == "Comment allez-vous aujourd'hui?", (
+            "Second target segment should be 'Comment allez-vous aujourd'hui?'"
+        )
 
     def test_align_single_sentence(self):
         """Test alignment of single sentences."""
@@ -144,9 +144,9 @@ class TestAligner:
         alignment = aligner.align(source_sentences, target_sentences)
 
         # Should return empty list since all source sentences are empty
-        assert (
-            alignment == []
-        ), "Should return empty list for whitespace-only source sentences"
+        assert alignment == [], (
+            "Should return empty list for whitespace-only source sentences"
+        )
 
     def test_align_with_punctuation(self):
         """Test alignment with various punctuation marks."""
@@ -185,12 +185,12 @@ class TestAligner:
 
         # Each segment should have substantial content
         for source_seg, target_seg in alignment:
-            assert (
-                len(source_seg) > 10
-            ), "Source segment should have substantial content"
-            assert (
-                len(target_seg) > 10
-            ), "Target segment should have substantial content"
+            assert len(source_seg) > 10, (
+                "Source segment should have substantial content"
+            )
+            assert len(target_seg) > 10, (
+                "Target segment should have substantial content"
+            )
 
     def test_align_multilingual_mix(self):
         """Test alignment with multilingual content."""
@@ -233,12 +233,12 @@ class TestAligner:
 
         # Each segment should have substantial content
         for source_seg, target_seg in alignment:
-            assert (
-                len(source_seg) > 20
-            ), "Source segment should have substantial content"
-            assert (
-                len(target_seg) > 20
-            ), "Target segment should have substantial content"
+            assert len(source_seg) > 20, (
+                "Source segment should have substantial content"
+            )
+            assert len(target_seg) > 20, (
+                "Target segment should have substantial content"
+            )
 
     def test_align_english_spanish_simple(self):
         """Test alignment of English-Spanish translation pairs with "
@@ -256,18 +256,18 @@ class TestAligner:
         # Each segment should contain corresponding translations
         for source_seg, target_seg in alignment:
             # Should contain both sentences (may be aligned as 2-2)
-            assert (
-                "Hello world" in source_seg
-            ), "Source segment should contain 'Hello world'"
-            assert (
-                "How are you today" in source_seg
-            ), "Source segment should contain 'How are you today'"
-            assert (
-                "Hola mundo" in target_seg
-            ), "Target segment should contain 'Hola mundo'"
-            assert (
-                "Cómo estás hoy" in target_seg
-            ), "Target segment should contain 'Cómo estás hoy'"
+            assert "Hello world" in source_seg, (
+                "Source segment should contain 'Hello world'"
+            )
+            assert "How are you today" in source_seg, (
+                "Source segment should contain 'How are you today'"
+            )
+            assert "Hola mundo" in target_seg, (
+                "Target segment should contain 'Hola mundo'"
+            )
+            assert "Cómo estás hoy" in target_seg, (
+                "Target segment should contain 'Cómo estás hoy'"
+            )
 
     def test_align_english_spanish_complex(self):
         """Test alignment of complex English-Spanish translation pairs."""
@@ -294,12 +294,12 @@ class TestAligner:
 
         # Each segment should have substantial content
         for source_seg, target_seg in alignment:
-            assert (
-                len(source_seg) > 20
-            ), "Source segment should have substantial content"
-            assert (
-                len(target_seg) > 20
-            ), "Target segment should have substantial content"
+            assert len(source_seg) > 20, (
+                "Source segment should have substantial content"
+            )
+            assert len(target_seg) > 20, (
+                "Target segment should have substantial content"
+            )
 
     def test_align_english_spanish_questions(self):
         """Test alignment of English-Spanish question sentences."""
@@ -326,9 +326,9 @@ class TestAligner:
 
         # Each segment should contain questions
         for source_seg, target_seg in alignment:
-            assert (
-                "?" in source_seg or "¿" in target_seg
-            ), "Should contain question marks"
+            assert "?" in source_seg or "¿" in target_seg, (
+                "Should contain question marks"
+            )
 
     def test_align_english_spanish_story(self):
         """Test alignment of English-Spanish story sentences."""
@@ -358,12 +358,12 @@ class TestAligner:
 
         # Each segment should have substantial content
         for source_seg, target_seg in alignment:
-            assert (
-                len(source_seg) > 30
-            ), "Source segment should have substantial content"
-            assert (
-                len(target_seg) > 30
-            ), "Target segment should have substantial content"
+            assert len(source_seg) > 30, (
+                "Source segment should have substantial content"
+            )
+            assert len(target_seg) > 30, (
+                "Target segment should have substantial content"
+            )
 
     def test_align_empty_source_sentences(self):
         """Test alignment when source sentences are minimal."""
@@ -379,15 +379,15 @@ class TestAligner:
         alignment = aligner.align(source_sentences, target_sentences)
 
         # Should have alignments (algorithm finds sentences even in edge cases)
-        assert (
-            len(alignment) > 0
-        ), "Should have alignments even with minimal source sentences"
+        assert len(alignment) > 0, (
+            "Should have alignments even with minimal source sentences"
+        )
 
         # Each alignment should have content (may have empty source segments)
         for source_seg, target_seg in alignment:
-            assert (
-                len(source_seg) > 0 or len(target_seg) > 0
-            ), "At least one segment should have content"
+            assert len(source_seg) > 0 or len(target_seg) > 0, (
+                "At least one segment should have content"
+            )
 
     def test_align_empty_target_sentences(self):
         """Test alignment when target sentences are minimal."""
@@ -403,9 +403,9 @@ class TestAligner:
         alignment = aligner.align(source_sentences, target_sentences)
 
         # Should have alignments (algorithm finds sentences even in edge cases)
-        assert (
-            len(alignment) > 0
-        ), "Should have alignments even with minimal target sentences"
+        assert len(alignment) > 0, (
+            "Should have alignments even with minimal target sentences"
+        )
 
         # Each alignment should have content
         for source_seg, target_seg in alignment:
@@ -425,9 +425,9 @@ class TestAligner:
 
         # Each alignment should have content
         for source_seg, target_seg in alignment:
-            assert (
-                len(source_seg) > 0 or len(target_seg) > 0
-            ), "At least one segment should have content"
+            assert len(source_seg) > 0 or len(target_seg) > 0, (
+                "At least one segment should have content"
+            )
 
     def test_align_single_source_multiple_target(self):
         """Test alignment with single source sentence and multiple target sentences."""
@@ -445,9 +445,9 @@ class TestAligner:
         # algorithm behavior)
         for source_seg, target_seg in alignment:
             # At least one segment should have content
-            assert (
-                len(source_seg) > 0 or len(target_seg) > 0
-            ), "At least one segment should have content"
+            assert len(source_seg) > 0 or len(target_seg) > 0, (
+                "At least one segment should have content"
+            )
 
     def test_align_multiple_source_single_target(self):
         """Test alignment with multiple source sentences and single target sentence."""
@@ -465,9 +465,9 @@ class TestAligner:
         # algorithm behavior)
         for source_seg, target_seg in alignment:
             # At least one segment should have content
-            assert (
-                len(source_seg) > 0 or len(target_seg) > 0
-            ), "At least one segment should have content"
+            assert len(source_seg) > 0 or len(target_seg) > 0, (
+                "At least one segment should have content"
+            )
 
     def test_align_edge_case_reconstruction(self):
         """Test alignment edge case that exercises the reconstruction logic."""
@@ -488,9 +488,9 @@ class TestAligner:
         # algorithm behavior)
         for source_seg, target_seg in alignment:
             # At least one segment should have content
-            assert (
-                len(source_seg) > 0 or len(target_seg) > 0
-            ), "At least one segment should have content"
+            assert len(source_seg) > 0 or len(target_seg) > 0, (
+                "At least one segment should have content"
+            )
 
     def test_align_cost_function_edge_cases(self):
         """Test alignment cost function with various edge cases."""
@@ -503,15 +503,15 @@ class TestAligner:
         alignment = aligner.align(source_sentences, target_sentences)
 
         # Should have alignments
-        assert (
-            len(alignment) > 0
-        ), "Should have alignments even with very long sentences"
+        assert len(alignment) > 0, (
+            "Should have alignments even with very long sentences"
+        )
 
         # Each alignment should have content
         for source_seg, target_seg in alignment:
-            assert (
-                len(source_seg) > 0 or len(target_seg) > 0
-            ), "At least one segment should have content"
+            assert len(source_seg) > 0 or len(target_seg) > 0, (
+                "At least one segment should have content"
+            )
 
     def test_align_dp_algorithm_edge_cases(self):
         """Test DP algorithm with edge cases that exercise different alignment types."""
@@ -528,9 +528,9 @@ class TestAligner:
 
         # Each alignment should have content
         for source_seg, target_seg in alignment:
-            assert (
-                len(source_seg) > 0 or len(target_seg) > 0
-            ), "At least one segment should have content"
+            assert len(source_seg) > 0 or len(target_seg) > 0, (
+                "At least one segment should have content"
+            )
 
     def test_align_2_1_pattern(self):
         """Test alignment with 2-1 pattern (two source sentences align to "
@@ -884,9 +884,9 @@ class TestAligner:
         assert len(alignment) > 0, "Should have alignments for large paragraphs"
 
         # Should have reasonable number of alignments (not too many, not too few)
-        assert (
-            5 <= len(alignment) <= 15
-        ), f"Should have reasonable number of alignments, got {len(alignment)}"
+        assert 5 <= len(alignment) <= 15, (
+            f"Should have reasonable number of alignments, got {len(alignment)}"
+        )
 
         # Each alignment should have substantial content
         total_source_chars = sum(len(source_seg) for source_seg, _ in alignment)
@@ -938,9 +938,9 @@ class TestAligner:
         # Test cost calculation for very different length sentences
         # (should be high cost)
         cost_different = aligner._alignment_cost(10, 100)  # 1:10 ratio
-        assert (
-            cost_different > cost_similar
-        ), "Very different length sentences should have higher cost"
+        assert cost_different > cost_similar, (
+            "Very different length sentences should have higher cost"
+        )
 
         # Test gap penalty cost
         gap_cost = aligner._gap_penalty_cost()
@@ -1028,17 +1028,17 @@ class TestNumericalStability:
             cost = aligner._alignment_cost(src_len, tgt_len)
 
             # Cost should be finite
-            assert not math.isinf(
-                cost
-            ), f"Cost is infinite for src_len={src_len}, tgt_len={tgt_len}"
-            assert not math.isnan(
-                cost
-            ), f"Cost is NaN for src_len={src_len}, tgt_len={tgt_len}"
+            assert not math.isinf(cost), (
+                f"Cost is infinite for src_len={src_len}, tgt_len={tgt_len}"
+            )
+            assert not math.isnan(cost), (
+                f"Cost is NaN for src_len={src_len}, tgt_len={tgt_len}"
+            )
 
             # Cost should be non-negative (since it's -log(probability))
-            assert (
-                cost >= 0
-            ), f"Cost is negative for src_len={src_len}, tgt_len={tgt_len}"
+            assert cost >= 0, (
+                f"Cost is negative for src_len={src_len}, tgt_len={tgt_len}"
+            )
 
     def test_gap_penalty_cost_never_infinite(self):
         """Test that gap penalty cost never returns infinite values."""
@@ -1049,9 +1049,9 @@ class TestNumericalStability:
             aligner = Aligner(gap_penalty=gap_penalty)
             cost = aligner._gap_penalty_cost()
 
-            assert not math.isinf(
-                cost
-            ), f"Cost is infinite for gap_penalty={gap_penalty}"
+            assert not math.isinf(cost), (
+                f"Cost is infinite for gap_penalty={gap_penalty}"
+            )
             assert cost >= 0, f"Cost is negative for gap_penalty={gap_penalty}"
 
     def test_extreme_delta_values(self):
@@ -1070,15 +1070,17 @@ class TestNumericalStability:
             cost = aligner._alignment_cost(src_len, tgt_len)
 
             # Cost should be finite and reasonable
-            assert not math.isinf(
-                cost
-            ), f"Cost is infinite for extreme case src_len={src_len}, tgt_len={tgt_len}"
-            assert not math.isnan(
-                cost
-            ), f"Cost is NaN for extreme case src_len={src_len}, tgt_len={tgt_len}"
-            assert (
-                cost >= 0
-            ), f"Cost is negative for extreme case src_len={src_len}, tgt_len={tgt_len}"
+            assert not math.isinf(cost), (
+                f"Cost is infinite for extreme case src_len={src_len}, "
+                f"tgt_len={tgt_len}"
+            )
+            assert not math.isnan(cost), (
+                f"Cost is NaN for extreme case src_len={src_len}, tgt_len={tgt_len}"
+            )
+            assert cost >= 0, (
+                f"Cost is negative for extreme case src_len={src_len}, "
+                f"tgt_len={tgt_len}"
+            )
 
     def test_probability_floor_value(self):
         """Test that probability never becomes exactly zero."""
@@ -1093,9 +1095,9 @@ class TestNumericalStability:
         epsilon_probability = raw_probability + 1e-12
 
         # The probability should be greater than zero
-        assert (
-            epsilon_probability > 0
-        ), "Probability should be greater than zero with epsilon"
+        assert epsilon_probability > 0, (
+            "Probability should be greater than zero with epsilon"
+        )
 
         # The cost should be finite
         cost = -math.log(epsilon_probability)
