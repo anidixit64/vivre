@@ -6,6 +6,7 @@ import json
 import tempfile
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from vivre.cli import app
@@ -409,7 +410,8 @@ class TestCLIErrorHandling:
 class TestCLIFormatOptions:
     """Test different output formats for CLI commands."""
 
-    def test_parse_all_formats(self):
+    @pytest.mark.parametrize("format_type", ["json", "dict", "text", "csv", "xml"])
+    def test_parse_all_formats(self, format_type):
         """Test parse command with all available formats."""
         epub_path = (
             Path(__file__).parent
@@ -417,39 +419,37 @@ class TestCLIFormatOptions:
             / "Vacation Under the Volcano - Mary Pope Osborne.epub"
         )
 
-        formats = ["json", "dict", "text", "csv", "xml"]
+        result = runner.invoke(
+            app,
+            [
+                "parse",
+                str(epub_path),
+                "--format",
+                format_type,
+                "--max-chapters",
+                "1",
+            ],
+        )
 
-        for format_type in formats:
-            result = runner.invoke(
-                app,
-                [
-                    "parse",
-                    str(epub_path),
-                    "--format",
-                    format_type,
-                    "--max-chapters",
-                    "1",
-                ],
-            )
+        assert result.exit_code == 0, f"Format {format_type} failed"
+        assert len(result.stdout) > 0, f"Format {format_type} produced empty output"
 
-            assert result.exit_code == 0, f"Format {format_type} failed"
-            assert len(result.stdout) > 0, f"Format {format_type} produced empty output"
+        # Test specific format characteristics
+        if format_type == "json":
+            # Should contain JSON structure
+            assert "{" in result.stdout
+            assert "}" in result.stdout
 
-            # Test specific format characteristics
-            if format_type == "json":
-                # Should contain JSON structure
-                assert "{" in result.stdout
-                assert "}" in result.stdout
+        elif format_type == "csv":
+            # Should contain commas
+            assert "," in result.stdout
 
-            elif format_type == "csv":
-                # Should contain commas
-                assert "," in result.stdout
+        elif format_type == "xml":
+            # Should contain XML tags
+            assert "<" in result.stdout and ">" in result.stdout
 
-            elif format_type == "xml":
-                # Should contain XML tags
-                assert "<" in result.stdout and ">" in result.stdout
-
-    def test_align_all_formats(self):
+    @pytest.mark.parametrize("format_type", ["json", "dict", "text", "csv", "xml"])
+    def test_align_all_formats(self, format_type):
         """Test align command with all available formats."""
         source_epub = (
             Path(__file__).parent
@@ -460,34 +460,31 @@ class TestCLIFormatOptions:
             Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
         )
 
-        formats = ["json", "dict", "text", "csv", "xml"]
+        result = runner.invoke(
+            app,
+            [
+                "align",
+                str(source_epub),
+                str(target_epub),
+                "en-es",
+                "--format",
+                format_type,
+            ],
+        )
 
-        for format_type in formats:
-            result = runner.invoke(
-                app,
-                [
-                    "align",
-                    str(source_epub),
-                    str(target_epub),
-                    "en-es",
-                    "--format",
-                    format_type,
-                ],
-            )
+        assert result.exit_code == 0, f"Format {format_type} failed"
+        assert len(result.stdout) > 0, f"Format {format_type} produced empty output"
 
-            assert result.exit_code == 0, f"Format {format_type} failed"
-            assert len(result.stdout) > 0, f"Format {format_type} produced empty output"
+        # Test specific format characteristics
+        if format_type == "json":
+            # Should contain JSON structure
+            assert "{" in result.stdout
+            assert "}" in result.stdout
 
-            # Test specific format characteristics
-            if format_type == "json":
-                # Should contain JSON structure
-                assert "{" in result.stdout
-                assert "}" in result.stdout
+        elif format_type == "csv":
+            # Should contain commas
+            assert "," in result.stdout
 
-            elif format_type == "csv":
-                # Should contain commas
-                assert "," in result.stdout
-
-            elif format_type == "xml":
-                # Should contain XML tags
-                assert "<" in result.stdout and ">" in result.stdout
+        elif format_type == "xml":
+            # Should contain XML tags
+            assert "<" in result.stdout and ">" in result.stdout

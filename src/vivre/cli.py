@@ -147,7 +147,15 @@ def align(
         if verbose:
             console.print("[yellow]Processing alignment...[/yellow]")
 
-        result = align_api(source_epub, target_epub, language_pair, method, **kwargs)
+        # Filter out _pipeline from kwargs as it's not a CLI parameter
+        align_kwargs = {k: v for k, v in kwargs.items() if k != "_pipeline"}
+        result = align_api(
+            source_epub,
+            target_epub,
+            language_pair,
+            method,
+            **align_kwargs,  # type: ignore[arg-type]
+        )
 
         # Format output based on requested format
         if format.lower() == "json":

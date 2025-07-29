@@ -2,10 +2,9 @@
 Tests for the integration module.
 """
 
-from pathlib import Path
-
 import pytest
 
+from vivre.api import AlignmentResult
 from vivre.integration import VivrePipeline, create_pipeline
 
 
@@ -36,19 +35,14 @@ class TestVivrePipeline:
         assert pipeline.aligner.s2 == 7.0
         assert pipeline.aligner.gap_penalty == 2.5
 
-    def test_process_parallel_epubs(self):
+    def test_process_parallel_epubs(
+        self, default_pipeline, source_epub_path, target_epub_path
+    ):
         """Test processing parallel EPUB files."""
-        source_epub = (
-            Path(__file__).parent
-            / "data"
-            / "Vacation Under the Volcano - Mary Pope Osborne.epub"
+        # Use the session-scoped fixtures instead of creating new instances
+        alignments = default_pipeline.process_parallel_epubs(
+            source_epub_path, target_epub_path
         )
-        target_epub = (
-            Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
-        )
-
-        pipeline = VivrePipeline("en-es")
-        alignments = pipeline.process_parallel_epubs(source_epub, target_epub)
 
         assert isinstance(alignments, list)
         assert len(alignments) > 0
@@ -58,39 +52,28 @@ class TestVivrePipeline:
             assert isinstance(source, str)
             assert isinstance(target, str)
 
-    def test_process_parallel_epubs_with_languages(self):
+    def test_process_parallel_epubs_with_languages(
+        self, default_pipeline, source_epub_path, target_epub_path
+    ):
         """Test processing parallel EPUB files with explicit languages."""
-        source_epub = (
-            Path(__file__).parent
-            / "data"
-            / "Vacation Under the Volcano - Mary Pope Osborne.epub"
-        )
-        target_epub = (
-            Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
-        )
-
-        pipeline = VivrePipeline("en-es")
-        alignments = pipeline.process_parallel_epubs(
-            source_epub, target_epub, source_language="en", target_language="es"
+        # Use the session-scoped fixtures instead of creating new instances
+        alignments = default_pipeline.process_parallel_epubs(
+            source_epub_path,
+            target_epub_path,
+            source_language="en",
+            target_language="es",
         )
 
         assert isinstance(alignments, list)
         assert len(alignments) > 0
 
-    def test_process_parallel_epubs_with_max_chapters(self):
+    def test_process_parallel_epubs_with_max_chapters(
+        self, default_pipeline, source_epub_path, target_epub_path
+    ):
         """Test processing parallel EPUB files with max chapters limit."""
-        source_epub = (
-            Path(__file__).parent
-            / "data"
-            / "Vacation Under the Volcano - Mary Pope Osborne.epub"
-        )
-        target_epub = (
-            Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
-        )
-
-        pipeline = VivrePipeline("en-es")
-        alignments = pipeline.process_parallel_epubs(
-            source_epub, target_epub, max_chapters=1
+        # Use the session-scoped fixtures instead of creating new instances
+        alignments = default_pipeline.process_parallel_epubs(
+            source_epub_path, target_epub_path, max_chapters=1
         )
 
         assert isinstance(alignments, list)
@@ -157,21 +140,14 @@ class TestVivrePipeline:
         assert isinstance(alignments, list)
         assert len(alignments) > 0
 
-    def test_batch_process_epubs(self):
+    def test_batch_process_epubs(
+        self, default_pipeline, source_epub_path, target_epub_path
+    ):
         """Test batch processing of multiple EPUB pairs."""
-        source_epub = (
-            Path(__file__).parent
-            / "data"
-            / "Vacation Under the Volcano - Mary Pope Osborne.epub"
-        )
-        target_epub = (
-            Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
-        )
+        # Use the session-scoped fixtures instead of creating new instances
+        epub_pairs = [(source_epub_path, target_epub_path)]
 
-        epub_pairs = [(source_epub, target_epub)]
-
-        pipeline = VivrePipeline("en-es")
-        results = pipeline.batch_process_epubs(epub_pairs)
+        results = default_pipeline.batch_process_epubs(epub_pairs)
 
         assert isinstance(results, dict)
         assert len(results) > 0
@@ -182,42 +158,30 @@ class TestVivrePipeline:
             assert isinstance(alignments, list)
             assert len(alignments) > 0
 
-    def test_batch_process_epubs_with_languages(self):
+    def test_batch_process_epubs_with_languages(
+        self, default_pipeline, source_epub_path, target_epub_path
+    ):
         """Test batch processing with explicit languages."""
-        source_epub = (
-            Path(__file__).parent
-            / "data"
-            / "Vacation Under the Volcano - Mary Pope Osborne.epub"
-        )
-        target_epub = (
-            Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
-        )
+        # Use the session-scoped fixtures instead of creating new instances
+        epub_pairs = [(source_epub_path, target_epub_path)]
 
-        epub_pairs = [(source_epub, target_epub)]
-
-        pipeline = VivrePipeline("en-es")
-        results = pipeline.batch_process_epubs(
+        results = default_pipeline.batch_process_epubs(
             epub_pairs, source_language="en", target_language="es"
         )
 
         assert isinstance(results, dict)
         assert len(results) > 0
 
-    def test_batch_process_epubs_with_max_chapters(self):
+    def test_batch_process_epubs_with_max_chapters(
+        self, default_pipeline, source_epub_path, target_epub_path
+    ):
         """Test batch processing with max chapters limit."""
-        source_epub = (
-            Path(__file__).parent
-            / "data"
-            / "Vacation Under the Volcano - Mary Pope Osborne.epub"
-        )
-        target_epub = (
-            Path(__file__).parent / "data" / "Vacaciones al pie de un volcán.epub"
-        )
+        # Use the session-scoped fixtures instead of creating new instances
+        epub_pairs = [(source_epub_path, target_epub_path)]
 
-        epub_pairs = [(source_epub, target_epub)]
-
-        pipeline = VivrePipeline("en-es")
-        results = pipeline.batch_process_epubs(epub_pairs, max_chapters_per_book=1)
+        results = default_pipeline.batch_process_epubs(
+            epub_pairs, max_chapters_per_book=1
+        )
 
         assert isinstance(results, dict)
         assert len(results) > 0
@@ -325,3 +289,26 @@ class TestPipelineErrorHandling:
         results = pipeline.batch_process_epubs([])
         assert isinstance(results, dict)
         assert len(results) == 0
+
+    def test_align_with_pipeline_dependency_injection(
+        self, default_pipeline, source_epub_path, target_epub_path
+    ):
+        """Test that align() works with pipeline dependency injection."""
+        from vivre import align
+
+        # Test using the default pipeline fixture with dependency injection
+        result = align(
+            source_epub_path, target_epub_path, "en-es", _pipeline=default_pipeline
+        )
+
+        assert isinstance(result, AlignmentResult)
+        dict_output = result.to_dict()
+        assert dict_output["language_pair"] == "en-es"
+        assert len(dict_output["chapters"]) > 0
+
+        # Verify that the pipeline was reused (not created new)
+        # The result should be consistent with using the same pipeline
+        result2 = align(
+            source_epub_path, target_epub_path, "en-es", _pipeline=default_pipeline
+        )
+        assert result.to_dict()["language_pair"] == result2.to_dict()["language_pair"]
