@@ -41,6 +41,7 @@ types-defusedxml = "^0.7"
 scipy-stubs = "^1.16.0.2"
 pytest-xdist = "^3.8.0"
 
+
 # --- NEW/MODIFIED TOOL CONFIGURATIONS ---
 sphinx = "^8.2.3"
 furo = "^2025.7.19"
@@ -99,3 +100,7 @@ retries = 3
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.docs.dependencies]
+sphinx = "^7.3.7"
+sphinx-rtd-theme = "^2.0.0"
