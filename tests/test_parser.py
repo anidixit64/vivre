@@ -1235,7 +1235,12 @@ class TestParser:
     <manifest>
         <item id="ncx" href="toc.ncx"
               media-type="application/x-dtbncx+xml"/>
+        <item id="item1" href="chapter1.xhtml"
+              media-type="application/xhtml+xml"/>
     </manifest>
+    <spine toc="ncx">
+        <itemref idref="item1"/>
+    </spine>
 </package>"""
 
         with patch("zipfile.ZipFile") as mock_zip:
