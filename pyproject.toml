@@ -42,6 +42,8 @@ scipy-stubs = "^1.16.0.2"
 pytest-xdist = "^3.8.0"
 
 # --- NEW/MODIFIED TOOL CONFIGURATIONS ---
+sphinx = "^8.2.3"
+furo = "^2025.7.19"
 
 [tool.black]
 line-length = 88
