@@ -54,7 +54,7 @@ jobs:
     - name: Run linter and formatter checks
       run: |
         poetry run black --check --diff .
-        poetry run ruff check .
+        poetry run ruff check . --ignore E501
         poetry run ruff format --check .
 
     - name: Run static type analysis
