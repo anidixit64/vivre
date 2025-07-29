@@ -75,6 +75,5 @@ jobs:
       uses: codecov/codecov-action@v4
       if: github.repository_owner == 'anidixit64' # Only run on your repo, not forks
       with:
-        token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: true
         verbose: true
