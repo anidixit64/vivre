@@ -1,5 +1,7 @@
 # Vivre
 
+[![codecov](https://codecov.io/github/anidixit64/vivre/graph/badge.svg?token=JJLN3K87G4)](https://codecov.io/github/anidixit64/vivre)
+
 A Python library for parsing EPUB files and aligning parallel texts.
 
 ## Description

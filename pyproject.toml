@@ -14,7 +14,7 @@ vivre = "vivre.cli:app"
 [tool.poetry.dependencies]
 python = ">=3.11,<3.14"
 requests = "^2.32.4"
-pytest = "^8.4.1"
+# Pytest was removed from here - it's a dev dependency.
 ebooklib = "^0.19"
 nltk = "^3.9.1"
 spacy = "^3.8.7"
@@ -28,13 +28,12 @@ beautifulsoup4 = "^4.13.4"
 lxml = "^6.0.0"
 
 [tool.poetry.group.dev.dependencies]
+# flake8 and isort were removed - their functionality is now in ruff.
 black = "^25.1.0"
-flake8 = "^7.3.0"
 mypy = "^1.17.0"
 pytest = "^8.4.1"
 pytest-cov = "^6.2.1"
-ruff = "^0.12.4"
-isort = "^6.0.1"
+ruff = "^0.12.4" # This now handles linting and import sorting.
 pre-commit = "^4.2.0"
 bandit = "^1.7.5"
 safety = "^2.3.5"
@@ -42,66 +41,48 @@ types-defusedxml = "^0.7"
 scipy-stubs = "^1.16.0.2"
 pytest-xdist = "^3.8.0"
 
+# --- NEW/MODIFIED TOOL CONFIGURATIONS ---
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+# Replaces flake8. Selects all the standard rules (E, F, W) and import rules (I).
+select = ["E", "F", "W", "I"]
+ignore = []
+
+[tool.ruff.format]
+# Replaces isort.
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+# Adds consistent, strict type checking rules.
+strict = true
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+# This points mypy to the stubs for better type checking of these libraries.
+plugins = ["numpy.typing.mypy_plugin"]
+
 [tool.coverage.run]
 source = ["src/vivre"]
 omit = ["*/tests/*", "*/test_*"]
 
 [tool.coverage.report]
+# This section is now much cleaner. Use `# pragma: no cover` in your code instead.
 exclude_lines = [
     "pragma: no cover",
-    "def __repr__",
-    "if self.debug:",
-    "if settings.DEBUG",
-    "raise AssertionError",
-    "raise NotImplementedError",
-    "if 0:",
     "if __name__ == .__main__.:",
-    "class .*\\bProtocol\\):",
+    "if typing.TYPE_CHECKING:",
+    "raise NotImplementedError",
     "@(abc\\.)?abstractmethod",
-    "except OSError:",
-    "except ET.ParseError:",
-    "except FileNotFoundError:",
-    "except ValueError:",
-    "except zipfile.BadZipFile:",
-    "except ET.ParseError as e:",
-    "except Exception:",
-    "raise OSError",
-    "raise ValueError",
-    "raise FileNotFoundError",
-    "raise zipfile.BadZipFile",
-    "if not text or not text.strip\\(\\):",
-    "if not title or title == \"Untitled Chapter\":",
-    "if variation and variation != title:",
-    "if len\\(title_words\\) >= 2:",
-    "if lang_code not in self._supported_languages:",
-    "if lang_code not in self._models:",
-    "if title == \"Untitled Chapter\" and text.strip\\(\\):",
-    "if title and title != \"Untitled Chapter\":",
 ]
-
-[tool.black]
-line-length = 88
-target-version = ['py311']
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-)/
-'''
-
-[tool.isort]
-profile = "black"
-multi_line_output = 3
-line_length = 88
-known_first_party = ["vivre"]
 
 [tool.safety]
 # Configure safety to be more resilient to network issues
