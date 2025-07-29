@@ -42,9 +42,9 @@ class TestParser:
         # Check if file was loaded successfully
         assert result is True, "EPUB should be loaded successfully"
         assert parser.is_loaded(), "Parser should indicate file is loaded"
-        assert (
-            parser.file_path == test_file_path
-        ), "Parser should store the correct file path"
+        assert parser.file_path == test_file_path, (
+            "Parser should store the correct file path"
+        )
 
     def test_load_spanish_epub(self):
         """Test loading the Spanish EPUB file."""
@@ -66,9 +66,9 @@ class TestParser:
         # Check if file was loaded successfully
         assert result is True, "EPUB should be loaded successfully"
         assert parser.is_loaded(), "Parser should indicate file is loaded"
-        assert (
-            parser.file_path == test_file_path
-        ), "Parser should store the correct file path"
+        assert parser.file_path == test_file_path, (
+            "Parser should store the correct file path"
+        )
 
     def test_load_nonexistent_file(self):
         """Test that loading a nonexistent file raises FileNotFoundError."""
@@ -164,7 +164,7 @@ class TestParser:
             # Skip text length check for cover/title pages
             if "cover" not in title.lower() and "title" not in title.lower():
                 assert len(text) > 0, f"chapter {i} text should not be empty"
-            print(f"Chapter {i+1}: {title[:50]}...")
+            print(f"Chapter {i + 1}: {title[:50]}...")
             print(f"Text length: {len(text)} characters")
 
     def test_extract_chapter_content_fallback(self):
@@ -367,9 +367,9 @@ class TestParser:
         try:
             # Empty idrefs are skipped, so this should return an empty list
             chapters = parser.parse_epub(Path(tmp_file.name))
-            assert (
-                chapters == []
-            ), "Should return empty list when all itemrefs have empty idrefs"
+            assert chapters == [], (
+                "Should return empty list when all itemrefs have empty idrefs"
+            )
         finally:
             os.unlink(tmp_file.name)
 
@@ -515,7 +515,7 @@ class TestParser:
             # Skip text length check for cover/title pages
             if "cover" not in title.lower() and "title" not in title.lower():
                 assert len(text) > 0, f"chapter {i} text should not be empty"
-            print(f"Chapter {i+1}: {title[:50]}...")
+            print(f"Chapter {i + 1}: {title[:50]}...")
             print(f"Text length: {len(text)} characters")
 
     def test_parse_epub_error_handling(self):
@@ -857,7 +857,7 @@ class TestParser:
             # Verify the text contains story content (not just metadata)
             assert len(text) > 100, f"chapter {i} should have substantial text content"
 
-            print(f"Chapter {i+1}: {title}")
+            print(f"Chapter {i + 1}: {title}")
             print(f"Text length: {len(text)} characters")
             print(f"Text preview: {text[:100]}...")
 
@@ -892,7 +892,7 @@ class TestParser:
             # Verify the text contains story content (not just metadata)
             assert len(text) > 100, f"chapter {i} should have substantial text content"
 
-            print(f"Chapter {i+1}: {title}")
+            print(f"Chapter {i + 1}: {title}")
             print(f"Text length: {len(text)} characters")
             print(f"Text preview: {text[:100]}...")
 
@@ -933,9 +933,9 @@ class TestParser:
         ]
 
         for title in non_story_titles:
-            assert (
-                parser._is_non_story_content(title, "test.xhtml", "en") is True
-            ), f"Should filter out: {title}"
+            assert parser._is_non_story_content(title, "test.xhtml", "en") is True, (
+                f"Should filter out: {title}"
+            )
 
         # Test story content titles that should NOT be filtered out
         story_titles = [
@@ -978,18 +978,19 @@ class TestParser:
             chapters = parser.parse_epub(test_file_path)
 
             # Verify we get at least one chapter
-            assert (
-                len(chapters) >= expected_chapters
-            ), f"Expected at least {expected_chapters} chapter for {filename}, got {len(chapters)}"
+            assert len(chapters) >= expected_chapters, (
+                f"Expected at least {expected_chapters} chapter for "
+                f"{filename}, got {len(chapters)}"
+            )
 
             # Verify all chapters have substantial content
             for i, (title, text) in enumerate(chapters):
-                assert (
-                    len(title) > 0
-                ), f"Chapter {i} title should not be empty in {filename}"
-                assert (
-                    len(text) > 100
-                ), f"Chapter {i} should have substantial text in {filename}"
+                assert len(title) > 0, (
+                    f"Chapter {i} title should not be empty in {filename}"
+                )
+                assert len(text) > 100, (
+                    f"Chapter {i} should have substantial text in {filename}"
+                )
 
                 # Verify the title doesn't contain non-story keywords
                 title_lower = title.lower()
@@ -1006,9 +1007,10 @@ class TestParser:
                 ]
 
                 for keyword in non_story_keywords:
-                    assert (
-                        keyword not in title_lower
-                    ), f"Chapter title '{title}' should not contain '{keyword}' in {filename}"
+                    assert keyword not in title_lower, (
+                        f"Chapter title '{title}' should not contain "
+                        f"'{keyword}' in {filename}"
+                    )
 
             print(
                 f"✓ {filename}: Extracted {len(chapters)} story chapters successfully"
@@ -1181,18 +1183,17 @@ class TestParser:
 
         # Mock content.opf with EPUB3 navigation document
         mock_content_opf = b"""<?xml version="1.0" encoding="UTF-8"?>
-<package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0">
+<package xmlns="http://www.idpf.org/2007/opf"
+         xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0">
     <metadata>
         <dc:title>Test Book</dc:title>
-        <dc:language>en</dc:language>
     </metadata>
     <manifest>
-        <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
-        <item id="chapter1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
+        <item id="nav" href="nav.xhtml"
+              media-type="application/xhtml+xml" properties="nav"/>
+        <item id="chapter1" href="chapter1.xhtml"
+              media-type="application/xhtml+xml"/>
     </manifest>
-    <spine>
-        <itemref idref="chapter1"/>
-    </spine>
 </package>"""
 
         # Mock navigation document content
@@ -1213,7 +1214,10 @@ class TestParser:
             mock_zip_instance = MagicMock()
             mock_zip.return_value.__enter__.return_value = mock_zip_instance
             mock_zip_instance.read.side_effect = lambda path: {
-                "META-INF/container.xml": b'<container><rootfiles><rootfile full-path="content.opf"/></rootfiles></container>',
+                "META-INF/container.xml": (
+                    b'<container><rootfiles><rootfile full-path="content.opf"/>'
+                    b"</rootfiles></container>"
+                ),
                 "content.opf": mock_content_opf,
                 "nav.xhtml": mock_nav_content,
             }.get(path, b"")
@@ -1226,12 +1230,16 @@ class TestParser:
 
         # Test EPUB2 fallback
         mock_content_opf_epub2 = b"""<?xml version="1.0" encoding="UTF-8"?>
-<package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
+<package xmlns="http://www.idpf.org/2007/opf"
+         xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
     <manifest>
-        <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+        <item id="ncx" href="toc.ncx"
+              media-type="application/x-dtbncx+xml"/>
+        <item id="item1" href="chapter1.xhtml"
+              media-type="application/xhtml+xml"/>
     </manifest>
     <spine toc="ncx">
-        <itemref idref="chapter1"/>
+        <itemref idref="item1"/>
     </spine>
 </package>"""
 
@@ -1239,7 +1247,10 @@ class TestParser:
             mock_zip_instance = MagicMock()
             mock_zip.return_value.__enter__.return_value = mock_zip_instance
             mock_zip_instance.read.side_effect = lambda path: {
-                "META-INF/container.xml": b'<container><rootfiles><rootfile full-path="content.opf"/></rootfiles></container>',
+                "META-INF/container.xml": (
+                    b'<container><rootfiles><rootfile full-path="content.opf"/>'
+                    b"</rootfiles></container>"
+                ),
                 "content.opf": mock_content_opf_epub2,
             }.get(path, b"")
 
@@ -1279,7 +1290,8 @@ class TestParser:
 
         # Test metadata extraction
         mock_content_opf = b"""<?xml version="1.0" encoding="UTF-8"?>
-<package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0">
+<package xmlns="http://www.idpf.org/2007/opf"
+         xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0">
     <metadata>
         <dc:title>Test Book Title</dc:title>
         <dc:language>es</dc:language>
@@ -1292,7 +1304,8 @@ class TestParser:
 
         # Test language code mapping
         mock_content_opf_fr = b"""<?xml version="1.0" encoding="UTF-8"?>
-<package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0">
+<package xmlns="http://www.idpf.org/2007/opf"
+         xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0">
     <metadata>
         <dc:title>Livre de Test</dc:title>
         <dc:language>fra</dc:language>
@@ -1389,18 +1402,18 @@ class TestImprovedFiltering:
         result1 = parser._is_non_story_content(
             title="Chapter 1: The Beginning", href="copyright.xhtml", book_language="en"
         )
-        assert (
-            result1 is True
-        ), "copyright.xhtml should be filtered despite story-like title"
+        assert result1 is True, (
+            "copyright.xhtml should be filtered despite story-like title"
+        )
 
         # Test case 2: File with story-like href but non-story title
         # This should NOT be filtered out (href takes priority)
         result2 = parser._is_non_story_content(
             title="Important Notice", href="chapter01.xhtml", book_language="en"
         )
-        assert (
-            result2 is False
-        ), "chapter01.xhtml should not be filtered despite non-story title"
+        assert result2 is False, (
+            "chapter01.xhtml should not be filtered despite non-story title"
+        )
 
         # Test case 3: File with non-story href and non-story title
         # This should be filtered out
@@ -1601,8 +1614,10 @@ class TestParserRobustness:
                 <itemref idref="item1"/>
             </spine>
             <manifest>
-                <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
-                <item id="item1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
+                <item id="ncx" href="toc.ncx"
+                      media-type="application/x-dtbncx+xml"/>
+                <item id="item1" href="chapter1.xhtml"
+                      media-type="application/xhtml+xml"/>
             </manifest>
         </package>"""
 
@@ -1613,7 +1628,10 @@ class TestParserRobustness:
 
             def read(self, name):
                 if name == "OEBPS/toc.ncx":
-                    return b"<ncx><navMap><navPoint><text>Chapter 1</text></navPoint></navMap></ncx>"
+                    return (
+                        b"<ncx><navMap><navPoint><text>Chapter 1</text></navPoint>"
+                        b"</navMap></ncx>"
+                    )
                 return b"<html><body>Content</body></html>"
 
         nav_doc = parser._find_navigation_document(
@@ -1632,8 +1650,10 @@ class TestParserRobustness:
                 <itemref idref="item1"/>
             </spine>
             <manifest>
-                <item id="toc" href="toc.xhtml" media-type="application/xhtml+xml"/>
-                <item id="item1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
+                <item id="toc" href="toc.xhtml"
+                      media-type="application/xhtml+xml"/>
+                <item id="item1" href="chapter1.xhtml"
+                      media-type="application/xhtml+xml"/>
             </manifest>
         </package>"""
 
@@ -1644,7 +1664,10 @@ class TestParserRobustness:
 
             def read(self, name):
                 if name == "OEBPS/toc.xhtml":
-                    return b"<html><body><nav><a href='chapter1.xhtml'>Chapter 1</a></nav></body></html>"
+                    return (
+                        b"<html><body><nav><a href='chapter1.xhtml'>Chapter 1</a>"
+                        b"</nav></body></html>"
+                    )
                 return b"<html><body>Content</body></html>"
 
         nav_doc = parser._find_navigation_document(

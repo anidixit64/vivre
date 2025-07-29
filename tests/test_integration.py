@@ -230,8 +230,8 @@ class TestVivrePipeline:
 
         # Create very long sentences
         long_sentence = (
-            "This is a very long sentence that contains many words and should test the robustness of the alignment algorithm. "
-            * 10
+            "This is a very long sentence that contains many words and "
+            "should test the robustness of the alignment algorithm. " * 10
         )
         source_sentences = [long_sentence]
         target_sentences = [

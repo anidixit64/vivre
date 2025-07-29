@@ -174,9 +174,9 @@ class TestSegmenter:
         expected_segments = ["First sentence.", "Second sentence.", "Third sentence."]
 
         for i, segment in enumerate(segments):
-            assert (
-                segment.strip() == expected_segments[i]
-            ), f"segment {i} should match expected"
+            assert segment.strip() == expected_segments[i], (
+                f"segment {i} should match expected"
+            )
 
     def test_segment_with_whitespace(self):
         """Test segmentation with extra whitespace."""
@@ -192,9 +192,9 @@ class TestSegmenter:
 
         for segment in segments:
             assert isinstance(segment, str), "each segment should be a string"
-            assert (
-                len(segment.strip()) > 0
-            ), "each segment should not be empty after stripping"
+            assert len(segment.strip()) > 0, (
+                "each segment should not be empty after stripping"
+            )
 
     def test_segment_with_language_parameter(self):
         """Test segmentation with explicit language parameter."""
@@ -243,9 +243,9 @@ class TestSegmenter:
 
         assert isinstance(segments, list), "segments should be a list"
         assert len(segments) == 3, "should have three segments"
-        assert (
-            "Ciao mondo." in segments[0]
-        ), "first segment should contain 'Ciao mondo.'"
+        assert "Ciao mondo." in segments[0], (
+            "first segment should contain 'Ciao mondo.'"
+        )
         assert "Come stai?" in segments[1], "second segment should contain 'Come stai?'"
         assert "Che bello!" in segments[2], "third segment should contain 'Che bello!'"
 
@@ -274,9 +274,9 @@ class TestSegmenter:
         # Spanish spaCy model treats inverted punctuation as separate segments
         # This is correct behavior for Spanish text processing
         assert len(segments) >= 3, "should have at least three segments"
-        assert (
-            "Hola mundo." in segments[0]
-        ), "first segment should contain 'Hola mundo.'"
+        assert "Hola mundo." in segments[0], (
+            "first segment should contain 'Hola mundo.'"
+        )
         # Check that we have the question content, regardless of exact segmentation
         question_content = any("¿" in seg or "Cómo estás" in seg for seg in segments)
         assert question_content, "should contain question content"
@@ -307,9 +307,9 @@ class TestSegmenter:
 
         assert isinstance(segments, list), "segments should be a list"
         assert len(segments) == 3, "should have three segments"
-        assert (
-            "Ciao mondo." in segments[0]
-        ), "first segment should contain 'Ciao mondo.'"
+        assert "Ciao mondo." in segments[0], (
+            "first segment should contain 'Ciao mondo.'"
+        )
         assert "Come stai?" in segments[1], "second segment should contain 'Come stai?'"
         assert "Che bello!" in segments[2], "third segment should contain 'Che bello!'"
 
@@ -335,15 +335,15 @@ class TestSegmenter:
         segments = segmenter.segment(text)
 
         # spaCy should handle abbreviations correctly
-        assert (
-            len(segments) == 2
-        ), "should have exactly 2 segments, not split on abbreviations"
-        assert (
-            "Dr. Smith went to the store." in segments[0]
-        ), "first segment should include Dr."
-        assert (
-            "Mr. Johnson was there too." in segments[1]
-        ), "second segment should include Mr."
+        assert len(segments) == 2, (
+            "should have exactly 2 segments, not split on abbreviations"
+        )
+        assert "Dr. Smith went to the store." in segments[0], (
+            "first segment should include Dr."
+        )
+        assert "Mr. Johnson was there too." in segments[1], (
+            "second segment should include Mr."
+        )
 
     def test_segment_with_ellipsis(self):
         """Test segmentation with ellipsis."""
@@ -390,9 +390,9 @@ class TestSegmenter:
 
         # spaCy should handle parentheses properly
         assert len(segments) == 2, "should have exactly 2 segments"
-        assert (
-            "(with a parenthetical remark)" in segments[0]
-        ), "first segment should include parentheses"
+        assert "(with a parenthetical remark)" in segments[0], (
+            "first segment should include parentheses"
+        )
 
     def test_segment_with_numbers_and_periods(self):
         """Test segmentation with numbers that have periods."""
@@ -404,9 +404,9 @@ class TestSegmenter:
         segments = segmenter.segment(text)
 
         # spaCy should handle decimal numbers correctly
-        assert (
-            len(segments) == 2
-        ), "should have exactly 2 segments, not split on decimal numbers"
+        assert len(segments) == 2, (
+            "should have exactly 2 segments, not split on decimal numbers"
+        )
         assert "$19.99" in segments[0], "first segment should include the price"
 
     def test_segment_with_multiple_punctuation(self):
@@ -420,12 +420,12 @@ class TestSegmenter:
 
         # spaCy should handle multiple punctuation marks
         assert len(segments) == 2, "should have exactly 2 segments"
-        assert (
-            "What?!" in segments[0]
-        ), "first segment should include multiple punctuation"
-        assert (
-            "How could this happen?!" in segments[1]
-        ), "second segment should include multiple punctuation"
+        assert "What?!" in segments[0], (
+            "first segment should include multiple punctuation"
+        )
+        assert "How could this happen?!" in segments[1], (
+            "second segment should include multiple punctuation"
+        )
 
     def test_segment_with_newlines(self):
         """Test segmentation with newlines in text."""
@@ -477,18 +477,18 @@ class TestSegmenter:
         segments = segmenter.segment(text)
 
         # spaCy should NOT split on ordinal numbers
-        assert (
-            len(segments) == 3
-        ), "should have exactly 3 segments, not split on ordinal numbers"
-        assert (
-            "1st place." in segments[0]
-        ), "first segment should include ordinal number"
-        assert (
-            "2nd place." in segments[1]
-        ), "second segment should include ordinal number"
-        assert (
-            "3rd place." in segments[2]
-        ), "third segment should include ordinal number"
+        assert len(segments) == 3, (
+            "should have exactly 3 segments, not split on ordinal numbers"
+        )
+        assert "1st place." in segments[0], (
+            "first segment should include ordinal number"
+        )
+        assert "2nd place." in segments[1], (
+            "second segment should include ordinal number"
+        )
+        assert "3rd place." in segments[2], (
+            "third segment should include ordinal number"
+        )
 
     def test_segment_with_time_expressions(self):
         """Test segmentation with time expressions."""
@@ -515,15 +515,15 @@ class TestSegmenter:
         segments = segmenter.segment(text)
 
         # spaCy should NOT split on version numbers
-        assert (
-            len(segments) == 2
-        ), "should have exactly 2 segments, not split on version numbers"
-        assert (
-            "Python 3.11" in segments[0]
-        ), "first segment should include version number"
-        assert (
-            "Python 3.12" in segments[1]
-        ), "second segment should include version number"
+        assert len(segments) == 2, (
+            "should have exactly 2 segments, not split on version numbers"
+        )
+        assert "Python 3.11" in segments[0], (
+            "first segment should include version number"
+        )
+        assert "Python 3.12" in segments[1], (
+            "second segment should include version number"
+        )
 
     # Tests that might still fail depending on spaCy model capabilities
 
@@ -554,9 +554,9 @@ class TestSegmenter:
         segments = segmenter.segment(text)
 
         # This might still fail depending on spaCy model
-        assert (
-            len(segments) == 2
-        ), "should have exactly 2 segments, not split on acronyms"
+        assert len(segments) == 2, (
+            "should have exactly 2 segments, not split on acronyms"
+        )
         assert "U.S.A." in segments[0], "first segment should include acronym"
         assert "U.K." in segments[1], "second segment should include acronym"
 
@@ -606,9 +606,9 @@ class TestSegmenter:
         for i, sentence in enumerate(sentences):
             assert isinstance(sentence, str), f"sentence {i} should be a string"
             assert len(sentence) > 0, f"sentence {i} should not be empty"
-            assert (
-                len(sentence.strip()) > 0
-            ), f"sentence {i} should not be empty after stripping"
+            assert len(sentence.strip()) > 0, (
+                f"sentence {i} should not be empty after stripping"
+            )
 
         print(f"Number of sentences extracted: {len(sentences)}")
         print(f"First sentence: {sentences[0]}")
@@ -623,9 +623,9 @@ class TestSegmenter:
 
         # Verify that segmentation preserved Spanish content
         sentences_text = " ".join(sentences)
-        assert (
-            len(sentences_text) > len(second_chapter_text) * 0.8
-        ), "Segmentation should preserve most of the original text"
+        assert len(sentences_text) > len(second_chapter_text) * 0.8, (
+            "Segmentation should preserve most of the original text"
+        )
 
         # Verify that sentences are reasonable length (not too short, not too long)
         for sentence in sentences:
@@ -642,9 +642,9 @@ class TestSegmenter:
                     "¡Ay!",
                     "¡Oh!",
                 ]
-                assert (
-                    sentence.strip() in short_responses
-                ), f"Very short sentence not a common response: '{sentence}'"
+                assert sentence.strip() in short_responses, (
+                    f"Very short sentence not a common response: '{sentence}'"
+                )
             else:
                 assert len(sentence) >= 3, f"Sentence too short: '{sentence}'"
             assert len(sentence) <= 1000, f"Sentence too long: '{sentence}'"
@@ -665,12 +665,12 @@ class TestSegmenter:
         mock_doc.sents = [mock_sent]
         mock_model.return_value = mock_doc
 
-        # Test languages with installed models - mock both language detection and model loading
+        # Test languages with installed models - mock both language detection
+        # and model loading
         with (
             patch.object(segmenter, "_detect_language") as mock_detect,
             patch.object(segmenter, "_load_model", return_value=mock_model),
         ):
-
             # Test English
             mock_detect.return_value = "en"
             result = segmenter.segment("Hello world")
@@ -714,7 +714,7 @@ class TestSegmenter:
         """Test that langdetect is properly integrated and working."""
         from unittest.mock import patch
 
-        import langdetect  # type: ignore
+        import langdetect
 
         from vivre.segmenter import Segmenter
 

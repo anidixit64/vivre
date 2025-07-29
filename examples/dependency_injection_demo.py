@@ -52,7 +52,7 @@ def demo_pipeline_caching():
     print(f"   Time: {time2:.2f} seconds")
     print(f"   Chapters found: {len(result2.to_dict()['chapters'])}")
 
-    print(f"\nPerformance improvement: {time1/time2:.1f}x faster")
+    print(f"\nPerformance improvement: {time1 / time2:.1f}x faster")
     print(f"Time saved: {time1 - time2:.2f} seconds")
 
 
@@ -99,7 +99,7 @@ def demo_dependency_injection():
     print(f"   Time: {time2:.2f} seconds")
     print(f"   Chapters found: {len(result2.to_dict()['chapters'])}")
 
-    print(f"\nDependency injection benefit: {time2/time1:.1f}x faster")
+    print(f"\nDependency injection benefit: {time2 / time1:.1f}x faster")
     print(f"Time saved: {time2 - time1:.2f} seconds")
 
 
@@ -134,7 +134,7 @@ def demo_multiple_alignments():
     total_time = 0
 
     for i in range(3):
-        print(f"\nAlignment {i+1}:")
+        print(f"\nAlignment {i + 1}:")
         start_time = time.time()
         result = align(source_epub, target_epub, "en-es", _pipeline=shared_pipeline)
         alignment_time = time.time() - start_time
@@ -147,7 +147,7 @@ def demo_multiple_alignments():
     print(
         f"\nTotal time for 3 alignments with shared pipeline: {total_time:.2f} seconds"
     )
-    print(f"Average time per alignment: {total_time/3:.2f} seconds")
+    print(f"Average time per alignment: {total_time / 3:.2f} seconds")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,8 @@
+# .pre-commit-config.yaml
 repos:
+  # Standard hooks for file health
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v5.0.0  # Use a recent, stable version
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -9,32 +11,30 @@ repos:
       - id: check-merge-conflict
       - id: debug-statements
 
-  - repo: https://github.com/psf/black
-    rev: 25.1.0
+  # Ruff for lightning-fast linting AND formatting.
+  # This one tool replaces black, isort, and flake8.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.5  # Use a recent, stable version
     hooks:
-      - id: black
-        language_version: python3.11
+      # Run the linter to find and automatically fix issues.
+      - id: ruff
+        args: [--fix, --show-fixes]
+      # Run the formatter to ensure consistent code style.
+      - id: ruff-format
 
-  - repo: https://github.com/pycqa/isort
-    rev: 6.0.1
-    hooks:
-      - id: isort
-        args: ["--profile", "black"]
-
-  - repo: https://github.com/pycqa/flake8
-    rev: 7.3.0
-    hooks:
-      - id: flake8
-
+  # Mypy for static type checking (Ruff does not do this)
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.17.0
+    rev: v1.17.0 # Use a recent, stable version
     hooks:
       - id: mypy
+        # Your existing dependencies and args are good.
         additional_dependencies: [types-requests]
         args: [--ignore-missing-imports]
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.4
-    hooks:
-      - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
+# --- DELETED TOOLS ---
+# The following tools are no longer needed because their functionality is
+# now handled by Ruff, resulting in a simpler and faster pre-commit setup.
+#
+# - repo: https://github.com/psf/black (Replaced by `ruff-format`)
+# - repo: https://github.com/pycqa/isort (Replaced by `ruff --fix`)
+# - repo: https://github.com/pycqa/flake8 (Replaced by `ruff`)
