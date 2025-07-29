@@ -83,6 +83,7 @@ Documentation
    :maxdepth: 2
    :caption: Contents:
 
+   tutorial
    api
    cli
    examples
