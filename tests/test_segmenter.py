@@ -665,7 +665,8 @@ class TestSegmenter:
         mock_doc.sents = [mock_sent]
         mock_model.return_value = mock_doc
 
-        # Test languages with installed models - mock both language detection and model loading
+        # Test languages with installed models - mock both language detection
+        # and model loading
         with (
             patch.object(segmenter, "_detect_language") as mock_detect,
             patch.object(segmenter, "_load_model", return_value=mock_model),
@@ -714,7 +715,7 @@ class TestSegmenter:
         """Test that langdetect is properly integrated and working."""
         from unittest.mock import patch
 
-        import langdetect  # type: ignore
+        import langdetect
 
         from vivre.segmenter import Segmenter
 
@@ -927,7 +928,7 @@ class TestSegmenterBatchProcessing:
 
         # This should fail (no language specified)
         with pytest.raises(TypeError):
-            segmenter.segment_batch(texts)  # type: ignore[call-arg] # Missing language parameter
+            segmenter.segment_batch(texts)  # Missing language parameter
 
     def test_segment_batch_single_language(self, segmenter: Segmenter):
         """Test that segment_batch works correctly for single-language batches."""

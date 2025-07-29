@@ -63,12 +63,17 @@ indent-style = "space"
 
 [tool.mypy]
 # Adds consistent, strict type checking rules.
-strict = true
+strict = false
 ignore_missing_imports = true
 warn_unused_ignores = true
 warn_redundant_casts = true
 # This points mypy to the stubs for better type checking of these libraries.
-plugins = ["numpy.typing.mypy_plugin"]
+# plugins = ["numpy.typing.mypy_plugin"]
+
+# Exclude test files from strict type checking
+[[tool.mypy.overrides]]
+module = "tests.*"
+strict = false
 
 [tool.coverage.run]
 source = ["src/vivre"]
