@@ -3,6 +3,7 @@
 [![codecov](https://codecov.io/github/anidixit64/vivre/graph/badge.svg?token=JJLN3K87G4)](https://codecov.io/github/anidixit64/vivre)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI/CD Pipeline](https://github.com/anidixit64/vivre/actions/workflows/ci.yml/badge.svg)](https://github.com/anidixit64/vivre/actions/workflows/ci.yml)
+[![Documentation](https://readthedocs.org/projects/vivre/badge/?version=latest)](https://vivre.readthedocs.io/en/latest/)
 [![Languages](https://img.shields.io/badge/Languages-4-green.svg)](https://github.com/anidixit64/vivre#language-support)
 [![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12-blue.svg)](https://www.python.org/downloads/)
 
@@ -300,15 +301,86 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-### Contributing
+## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass and coverage remains >90%
-6. Submit a pull request
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for detailed information on how to contribute to this project.
+
+### Quick Start for Contributors
+
+1. **Fork the repository** on GitHub
+2. **Clone your fork** locally:
+   ```bash
+   git clone https://github.com/your-username/vivre.git
+   cd vivre
+   ```
+3. **Create a feature branch**:
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+4. **Set up development environment**:
+   ```bash
+   # Install dependencies
+   poetry install
+
+   # Install pre-commit hooks
+   pre-commit install
+
+   # Install spaCy models
+   poetry run python -m spacy download en_core_web_sm
+   poetry run python -m spacy download es_core_news_sm
+   poetry run python -m spacy download fr_core_news_sm
+   poetry run python -m spacy download it_core_news_sm
+   ```
+5. **Make your changes** and add tests for new functionality
+6. **Run tests and quality checks**:
+   ```bash
+   # Run all tests
+   poetry run pytest tests/
+
+   # Run with coverage
+   poetry run pytest tests/ --cov=vivre --cov-report=html
+
+   # Run linting and formatting
+   poetry run ruff check .
+   poetry run ruff format --check .
+
+   # Run type checking
+   poetry run mypy src/ tests/
+   ```
+7. **Ensure all tests pass** and coverage remains >90%
+8. **Commit your changes** with clear commit messages
+9. **Push to your fork** and submit a pull request
+
+### Development Guidelines
+
+- Follow the existing code style and conventions
+- Add type hints to all new functions
+- Include docstrings for all public functions and classes
+- Write tests for new functionality
+- Update documentation as needed
+- Ensure all pre-commit hooks pass
+
+For more detailed information, please see our [Contributing Guide](CONTRIBUTING.md).
 
 ## License
 
-This project is licensed under the Apache License 2.0 - see the LICENSE file for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+### License Summary
+
+- **License**: Apache License 2.0
+- **SPDX Identifier**: Apache-2.0
+- **Permissions**: Commercial use, modification, distribution, patent use, private use
+- **Limitations**: Liability, warranty
+- **Conditions**: License and copyright notice
+
+The Apache License 2.0 is a permissive license that allows for:
+- Commercial use
+- Modification
+- Distribution
+- Patent use
+- Private use
+
+While providing liability protection and requiring license and copyright notice preservation.
+
+For the complete license text, please see the [LICENSE](LICENSE) file in this repository.
