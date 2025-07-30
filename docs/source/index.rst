@@ -91,6 +91,69 @@ Development
 
 For development setup and contributing guidelines, see the project's `GitHub repository <https://github.com/anidixit64/vivre>`_.
 
+Contributing
+-----------
+
+We welcome contributions to Vivre! Here's how you can help:
+
+1. **Fork the repository** on GitHub
+2. **Create a feature branch** for your changes
+3. **Make your changes** following the coding standards
+4. **Add tests** for any new functionality
+5. **Ensure all tests pass** and coverage remains >90%
+6. **Submit a pull request** with a clear description
+
+Development Setup
+~~~~~~~~~~~~~~~~
+
+.. code-block:: bash
+
+   # Clone and setup
+   git clone https://github.com/anidixit64/vivre.git
+   cd vivre
+   pip install -e .
+
+   # Install spaCy models
+   python -m spacy download en_core_web_sm
+   python -m spacy download es_core_news_sm
+   python -m spacy download fr_core_news_sm
+   python -m spacy download it_core_news_sm
+
+   # Install development dependencies
+   pip install -e ".[dev]"
+
+   # Install pre-commit hooks
+   pre-commit install
+
+Running Tests
+~~~~~~~~~~~~
+
+.. code-block:: bash
+
+   # Run all tests
+   pytest tests/
+
+   # Run with coverage
+   pytest tests/ --cov=src/vivre --cov-report=html
+
+   # Run specific test files
+   pytest tests/test_api.py
+
+Code Quality
+~~~~~~~~~~~
+
+The project uses pre-commit hooks for code quality:
+
+.. code-block:: bash
+
+   # Run hooks manually
+   pre-commit run --all-files
+
+License
+-------
+
+This project is licensed under the Apache License 2.0 - see the LICENSE file for details.
+
 Indices and tables
 ==================
 
