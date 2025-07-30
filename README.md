@@ -29,6 +29,8 @@ Vivre provides tools for processing parallel texts through a complete pipeline: 
 
 ### Installation
 
+#### Option 1: Local Installation
+
 1. Clone the repository:
 ```bash
 git clone <repository-url>
@@ -47,6 +49,36 @@ python -m spacy download es_core_news_sm
 python -m spacy download fr_core_news_sm
 # Add other language models as needed
 ```
+
+#### Option 2: Docker (Recommended)
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd vivre
+```
+
+2. Build the Docker image:
+```bash
+docker build -t vivre .
+```
+
+3. Use the helper script for different operations:
+```bash
+# Run test suite (default)
+./docker-run.sh
+
+# Drop into interactive shell
+./docker-run.sh shell
+
+# Show CLI help
+./docker-run.sh cli
+
+# Get help on available options
+./docker-run.sh help
+```
+
+The Docker setup includes all dependencies and spaCy models pre-installed.
 
 ## Usage
 
@@ -199,6 +231,24 @@ pytest tests/ --cov=vivre --cov-report=html
 # Run specific test files
 pytest tests/test_api.py
 pytest tests/test_parser.py
+```
+
+### Docker Development
+
+For consistent development environments, use Docker:
+
+```bash
+# Build the development image
+docker build -t vivre .
+
+# Run tests in Docker
+docker run --rm vivre python -m pytest tests/ -v
+
+# Interactive development shell
+docker run --rm -it vivre /bin/bash
+
+# Run specific test with coverage
+docker run --rm vivre python -m pytest tests/test_api.py --cov=src/vivre/api --cov-report=term-missing
 ```
 
 ### Code Quality
