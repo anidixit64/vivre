@@ -19,5 +19,5 @@ RUN poetry install --only-root
 # Set Python path
 ENV PYTHONPATH=/app/src
 
-# Default command
-CMD ["python", "-m", "vivre"]
+# Default command - run test suite
+CMD ["python", "-m", "pytest", "tests/", "-v"]
