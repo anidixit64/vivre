@@ -37,7 +37,7 @@ Vivre provides tools for processing parallel texts through a complete pipeline: 
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/anidixit64/vivre.git
 cd vivre
 ```
 
@@ -51,14 +51,14 @@ pip install -e .
 python -m spacy download en_core_web_sm
 python -m spacy download es_core_news_sm
 python -m spacy download fr_core_news_sm
-# Add other language models as needed
+python -m spacy download it_core_news_sm
 ```
 
 #### Option 2: Docker (Recommended)
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/anidixit64/vivre.git
 cd vivre
 ```
 
@@ -117,6 +117,19 @@ vivre align --help
 vivre parse --help
 ```
 
+**Quick Start Examples:**
+
+```bash
+# Parse a book and see its structure
+vivre parse sample.epub --verbose
+
+# Align English and French versions of the same book
+vivre align english_book.epub french_book.epub en-fr --format json --output alignment.json
+
+# Parse with sentence segmentation
+vivre parse sample.epub --segment --language en --format csv --output sentences.csv
+```
+
 ### Simple API
 
 Vivre provides easy-to-use top-level functions for common tasks:
@@ -154,6 +167,27 @@ result = vivre.align(source_chapters, target_chapters, 'en-fr')  # Works with ob
 # Get supported languages
 languages = vivre.get_supported_languages()
 print(f"Supported languages: {languages}")
+```
+
+**Quick Start Examples:**
+
+```python
+import vivre
+
+# Parse a book
+chapters = vivre.read('sample.epub')
+print(f"Book has {len(chapters)} chapters")
+
+# Align two books
+result = vivre.align('english.epub', 'french.epub', 'en-fr')
+print(result.to_json())
+
+# Get sentence pairs
+pairs = vivre.quick_align('english.epub', 'french.epub', 'en-fr')
+for en, fr in pairs[:3]:
+    print(f"EN: {en}")
+    print(f"FR: {fr}")
+    print()
 ```
 
 ### Advanced Usage

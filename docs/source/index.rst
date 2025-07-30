@@ -21,14 +21,7 @@ Key Features
 Installation
 ------------
 
-Vivre can be installed using Poetry, pip, or by cloning the repository.
-
-Using Poetry (Recommended)
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: bash
-
-   poetry add vivre
+Vivre can be installed using pip or by cloning the repository.
 
 Using pip
 ~~~~~~~~~
@@ -44,7 +37,11 @@ From Source
 
    git clone https://github.com/anidixit64/vivre.git
    cd vivre
-   poetry install
+   pip install -e .
+   python -m spacy download en_core_web_sm
+   python -m spacy download es_core_news_sm
+   python -m spacy download fr_core_news_sm
+   python -m spacy download it_core_news_sm
 
 Quick Start
 -----------
@@ -53,25 +50,26 @@ Basic usage example:
 
 .. code-block:: python
 
-   from vivre import VivreProcessor
+   import vivre
 
-   # Process an EPUB file
-   processor = VivreProcessor("path/to/book.epub")
-   content = processor.extract_content()
+   # Parse an EPUB file
+   chapters = vivre.read("path/to/book.epub")
+   print(f"Found {len(chapters)} chapters")
 
-   # Analyze the text
-   segments = processor.segment_text(content)
+   # Align two books
+   result = vivre.align("english.epub", "french.epub", "en-fr")
+   print(result.to_json())
 
 Command Line Usage
 ~~~~~~~~~~~~~~~~~
 
 .. code-block:: bash
 
-   # Process a single file
-   vivre process book.epub
+   # Parse an EPUB file
+   vivre parse book.epub --verbose
 
-   # Process multiple files
-   vivre process *.epub
+   # Align two books
+   vivre align english.epub french.epub en-fr --format json
 
    # Get help
    vivre --help

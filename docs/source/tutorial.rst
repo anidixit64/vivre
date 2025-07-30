@@ -22,71 +22,51 @@ For this tutorial, we'll use two sample books:
 Using the Python Library
 -----------------------
 
-Step 1: Import and Initialize
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step 1: Import and Parse Books
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-   from vivre import VivreProcessor, BookAligner
+   import vivre
 
-   # Initialize processors for both books
-   original_processor = VivreProcessor("original_book.epub")
-   translated_processor = VivreProcessor("translated_book.epub")
+   # Parse both books
+   original_chapters = vivre.read("original_book.epub")
+   translated_chapters = vivre.read("translated_book.epub")
 
-Step 2: Extract Content
+   print(f"Original book has {len(original_chapters)} chapters")
+   print(f"Translated book has {len(translated_chapters)} chapters")
+
+Step 2: Align the Books
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
-   # Extract content from both books
-   original_content = original_processor.extract_content()
-   translated_content = translated_processor.extract_content()
+   # Align the books (specify language pair)
+   result = vivre.align("original_book.epub", "translated_book.epub", "en-fr")
 
-   print(f"Original book has {len(original_content)} chapters")
-   print(f"Translated book has {len(translated_content)} chapters")
+   print(f"Alignment completed successfully")
 
-Step 3: Create Alignment
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: python
-
-   # Initialize the aligner
-   aligner = BookAligner()
-
-   # Align the books
-   alignment_result = aligner.align_books(
-       original_content,
-       translated_content,
-       method="semantic"  # or "structural"
-   )
-
-   print(f"Alignment completed with {len(alignment_result)} matched pairs")
-
-Step 4: Analyze Results
+Step 3: Analyze Results
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
    # Get alignment statistics
-   stats = alignment_result.get_statistics()
-   print(f"Confidence score: {stats.confidence:.2f}")
-   print(f"Coverage: {stats.coverage:.2%}")
+   print(f"Number of alignments: {len(result)}")
 
    # Access specific alignments
-   for i, (orig_chapter, trans_chapter) in enumerate(alignment_result.pairs):
-       print(f"Chapter {i+1}: {orig_chapter.title} ↔ {trans_chapter.title}")
+   for i, alignment in enumerate(result[:5]):
+       print(f"Alignment {i+1}: {alignment}")
 
-Step 5: Export Results
+Step 4: Export Results
 ~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
    # Export to various formats
-   alignment_result.export_to_json("alignment_result.json")
-   alignment_result.export_to_csv("alignment_result.csv")
-
-   # Generate a detailed report
-   alignment_result.generate_report("alignment_report.html")
+   result.to_json("alignment_result.json")
+   result.to_csv("alignment_result.csv")
+   result.to_xml("alignment_result.xml")
 
 Complete Example
 ~~~~~~~~~~~~~~~
@@ -95,8 +75,44 @@ Here's a complete script that demonstrates the full workflow:
 
 .. code-block:: python
 
-   from vivre import VivreProcessor, BookAligner
-   import logging
+   import vivre
+
+   # Parse and align books
+   result = vivre.align("original_book.epub", "translated_book.epub", "en-fr")
+
+   # Export results
+   result.to_json("alignment.json")
+   print("Alignment completed and saved to alignment.json")
+
+Using the Command Line Interface
+------------------------------
+
+The CLI provides a quick way to align books without writing Python code:
+
+Step 1: Parse a Book
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: bash
+
+   # Parse a book and see its structure
+   vivre parse book.epub --verbose
+
+   # Parse with sentence segmentation
+   vivre parse book.epub --segment --language en --format csv --output sentences.csv
+
+Step 2: Align Books
+~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: bash
+
+   # Basic alignment
+   vivre align english.epub french.epub en-fr
+
+   # Alignment with custom output
+   vivre align english.epub french.epub en-fr --format json --output alignment.json
+
+   # Alignment with custom parameters
+   vivre align english.epub french.epub en-fr --c 1.1 --s2 7.0 --gap-penalty 2.5
 
    # Set up logging
    logging.basicConfig(level=logging.INFO)
