@@ -1,6 +1,10 @@
 # Vivre
 
 [![codecov](https://codecov.io/github/anidixit64/vivre/graph/badge.svg?token=JJLN3K87G4)](https://codecov.io/github/anidixit64/vivre)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![CI/CD Pipeline](https://github.com/anidixit64/vivre/actions/workflows/ci.yml/badge.svg)](https://github.com/anidixit64/vivre/actions/workflows/ci.yml)
+[![Languages](https://img.shields.io/badge/Languages-4-green.svg)](https://github.com/anidixit64/vivre#language-support)
+[![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12-blue.svg)](https://www.python.org/downloads/)
 
 A Python library for parsing EPUB files and aligning parallel texts.
 
@@ -207,15 +211,14 @@ The library supports multiple output formats:
 
 ## Language Support
 
-Vivre supports multiple languages through spaCy models:
+Vivre supports the following languages through spaCy models:
 
 - English (`en_core_web_sm`)
 - Spanish (`es_core_news_sm`)
 - French (`fr_core_news_sm`)
-- German (`de_core_news_sm`)
 - Italian (`it_core_news_sm`)
-- Portuguese (`pt_core_news_sm`)
-- And more...
+
+These are the languages for which spaCy models are pre-installed and ready to use for EPUB parsing and text segmentation.
 
 ## Development
 
