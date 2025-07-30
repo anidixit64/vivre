@@ -3,6 +3,7 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import importlib.util
 import os
 import sys
 
@@ -32,5 +33,10 @@ sys.path.insert(0, os.path.abspath("../../src"))
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "furo"
+# Try to use Furo theme, fallback to alabaster if not available
+if importlib.util.find_spec("furo"):
+    html_theme = "furo"
+else:
+    html_theme = "alabaster"
+
 html_static_path = ["_static"]

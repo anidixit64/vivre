@@ -1,25 +1,22 @@
 # .readthedocs.yaml
-# Corrected Read the Docs configuration file for the 'vivre' project.
+# Read the Docs configuration file for the 'vivre' project.
 
-# Required
 version: 2
 
 # Set the OS, Python version, and other tools you might need
 build:
   os: ubuntu-22.04
   tools:
-    python: "3.11" # Use the same Python version as your CI
+    python: "3.11"
 
 # Tell Sphinx where to find your configuration file
 sphinx:
   configuration: docs/source/conf.py
 
-# Define how to install your project and its dependencies
+# Install dependencies and build documentation
 python:
   install:
-    # THIS IS THE CORRECTED LINE:
     - method: pip
       path: .
-      # Also install the documentation-specific dependencies
       extra_requirements:
         - docs
