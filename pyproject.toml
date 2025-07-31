@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "vivre"
-version = "0.1.0"
+version = "0.1.0a1"
 description = "A Python library for machine learning and corpus linguistics"
 authors = ["Aniket Dixit <aniketdixit00.ani@gmail.com>"]
 readme = "README.md"
