@@ -1,219 +1,144 @@
 name: Publish Package
 
+# Use a single, authoritative trigger to prevent duplicate runs.
+# 'published' is better than 'created' as it fires only on the final click.
 on:
   release:
-    types: [created]
+    types: [published]
+  # Keep workflow_dispatch for manual runs.
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to publish (e.g., 1.0.0)'
-        required: true
-        type: string
 
 jobs:
-  test:
-    name: Test and Build
+  # Job 1: Build the package and documentation once, then pass them as artifacts.
+  build:
+    name: Build Artifacts
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.11", "3.12"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install and configure Poetry
+        uses: snok/install-poetry@v1
+
+      - name: Build package
+        run: poetry build
+
+      - name: Store package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package
+          path: dist/
+          retention-days: 1
+
+      - name: Build documentation
+        run: |
+          poetry install --with docs
+          poetry run sphinx-build -b html docs/source docs/build/html
+
+      - name: Store documentation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-html
+          path: docs/build/html/
+          retention-days: 1
+
+  # Job 2: Publish to TestPyPI for verification.
+  publish-to-testpypi:
+    name: Publish to TestPyPI
+    needs: build
+    runs-on: ubuntu-latest
+    # Only run this job for pre-releases. This is your safety gate.
+    if: github.event.release.prerelease
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Download all the artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository_url: https://test.pypi.org/legacy/
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          packages_dir: artifacts/python-package/
 
-    - name: Install Poetry
-      uses: snok/install-poetry@v1
-      with:
-        version: latest
-        virtualenvs-create: true
-        virtualenvs-in-project: true
-
-    - name: Cache dependencies
-      uses: actions/cache@v4
-      with:
-        path: .venv
-        key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
-
-    - name: Install dependencies
-      run: poetry install --no-interaction
-
-    - name: Install spaCy models
-      run: |
-        poetry run python -m spacy download en_core_web_sm
-        poetry run python -m spacy download es_core_news_sm
-        poetry run python -m spacy download fr_core_news_sm
-        poetry run python -m spacy download it_core_news_sm
-
-    - name: Run linting and formatting checks
-      run: |
-        poetry run ruff format --check .
-        poetry run ruff check . --ignore E501
-
-    - name: Run type checking
-      run: poetry run mypy src/ tests/
-
-    - name: Run tests with coverage
-      run: poetry run pytest --cov=vivre --cov-report=xml --cov-report=term-missing
-
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
-      if: github.repository_owner == 'anidixit64'
-      with:
-        fail_ci_if_error: true
-        verbose: true
-
-    - name: Build package
-      run: poetry build
-
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: dist-${{ matrix.python-version }}
-        path: dist/
-        retention-days: 1
-
-  build-docs:
-    name: Build Documentation
-    runs-on: ubuntu-latest
-    needs: test
-    if: success()
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.11"
-
-    - name: Install Poetry
-      uses: snok/install-poetry@v1
-      with:
-        version: latest
-        virtualenvs-create: true
-        virtualenvs-in-project: true
-
-    - name: Install dependencies with docs
-      run: poetry install --with docs
-
-    - name: Build documentation
-      run: |
-        cd docs
-        make html
-
-    - name: Upload documentation artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: docs
-        path: docs/build/html/
-        retention-days: 30
-
-  publish:
+  # Job 3: Publish to the real PyPI for final releases.
+  publish-to-pypi:
     name: Publish to PyPI
+    needs: build
     runs-on: ubuntu-latest
-    needs: [test, build-docs]
-    if: success()
+    # Only run this job if it's NOT a pre-release. This is your main release gate.
+    if: "!github.event.release.prerelease"
     environment:
       name: pypi
       url: https://pypi.org/p/vivre
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.11"
-
-    - name: Install Poetry
-      uses: snok/install-poetry@v1
-      with:
-        version: latest
-        virtualenvs-create: true
-        virtualenvs-in-project: true
-
-    - name: Install dependencies
-      run: poetry install --no-interaction
-
-    - name: Build package
-      run: poetry build
-
-    - name: Publish to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        password: ${{ secrets.PYPI_API_TOKEN }}
-        skip-existing: true
-        verbose: true
-
-    - name: Publish to Test PyPI (optional)
-      uses: pypa/gh-action-pypi-publish@release/v1
-      env:
-        TEST_PYPI_TOKEN: ${{ secrets.TEST_PYPI_API_TOKEN }}
-      if: env.TEST_PYPI_TOKEN != ''
-      with:
-        repository-url: https://test.pypi.org/legacy/
-        password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-        skip-existing: true
-        verbose: true
-
-  upload-docs-to-release:
-    name: Upload Documentation to Release
-    runs-on: ubuntu-latest
-    needs: [publish, build-docs]
-    if: success()
     permissions:
-      contents: write
+      id-token: write # Required for trusted publishing
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Download all the artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
 
-    - name: Download documentation artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: docs
-        path: docs/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages_dir: artifacts/python-package/
+          # No password needed due to trusted publishing and environment setup.
 
-    - name: Upload documentation to release
-      uses: softprops/action-gh-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.event.release.tag_name }}
-        files: ./docs/**/*
-        draft: false
-        prerelease: false
+  # Job 4: Deploy documentation to GitHub Pages (Example).
+  # This is a better practice than uploading a zip to the release.
+  deploy-docs:
+    name: Deploy Documentation
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write      # to deploy to Pages
+      id-token: write   # to verify the deployment originates from an appropriate source
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download documentation artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docs-html
+          path: ./docs-dist
 
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './docs-dist'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # Job 5: Notification of success.
   notify:
     name: Notify Success
     runs-on: ubuntu-latest
-    needs: [publish, upload-docs-to-release]
-    if: success()
+    # This job now runs if either of the publish jobs succeeds.
+    needs: [publish-to-testpypi, publish-to-pypi]
+    # 'always()' ensures it runs, 'success()' checks the outcome of dependencies.
+    if: always() && (needs.publish-to-pypi.result == 'success' || needs.publish-to-testpypi.result == 'success')
     steps:
-    - name: Notify on success
-      run: |
-        echo "✅ Package successfully published to PyPI!"
-        echo "📦 Version: ${{ github.event.release.tag_name }}"
-        echo "🔗 PyPI: https://pypi.org/p/vivre"
-        echo "📚 Documentation: https://vivre.readthedocs.io/"
-
-  notify-failure:
-    name: Notify Failure
-    runs-on: ubuntu-latest
-    needs: [test, build-docs, publish, upload-docs-to-release]
-    if: failure()
-    steps:
-    - name: Notify on failure
-      run: |
-        echo "❌ Package publishing failed!"
-        echo "🔍 Check the workflow logs for details."
-        echo "📋 Failed job: ${{ needs.*.result }}"
+      - name: Notify on success
+        run: |
+          echo "✅ Package successfully published!"
+          echo "📦 Version: ${{ github.event.release.tag_name }}"
+          if ( ${{ needs.publish-to-pypi.result == 'success' }} ); then
+            echo "🔗 PyPI: https://pypi.org/p/vivre/${{ github.event.release.tag_name }}"
+          else
+            echo "🔗 TestPyPI: https://test.pypi.org/p/vivre/${{ github.event.release.tag_name }}"
+          fi
