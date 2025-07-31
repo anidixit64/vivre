@@ -93,38 +93,7 @@ jobs:
           packages_dir: artifacts/python-package/
           # No password needed due to trusted publishing and environment setup.
 
-  # Job 4: Deploy documentation to GitHub Pages (Example).
-  # This is a better practice than uploading a zip to the release.
-  deploy-docs:
-    name: Deploy Documentation
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write      # to deploy to Pages
-      id-token: write   # to verify the deployment originates from an appropriate source
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Download documentation artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: docs-html
-          path: ./docs-dist
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
-      - name: Upload artifact to GitHub Pages
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: './docs-dist'
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-  # Job 5: Notification of success.
+  # Job 4: Notification of success.
   notify:
     name: Notify Success
     runs-on: ubuntu-latest
