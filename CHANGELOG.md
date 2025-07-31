@@ -8,22 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Docker support with comprehensive setup
-- Professional documentation with badges
-- Contributing guidelines and development setup
-- Enhanced CLI examples and Python API documentation
-- Support for 4 languages: English, Spanish, French, Italian
+- No changes yet
 
 ### Changed
-- Improved installation instructions
-- Updated Sphinx documentation to match current API
-- Enhanced README with comprehensive examples
+- No changes yet
 
 ### Fixed
-- Corrected license information (Apache 2.0)
-- Updated language support documentation
+- No changes yet
 
-## [0.1.0] - 2025-01-XX
+## [0.1.0] - 2025-01-27
 
 ### Added
 - Initial release of Vivre
@@ -36,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite with >90% coverage
 - Pre-commit hooks for code quality
 - Sphinx documentation
+- Docker support with comprehensive setup
+- Professional documentation with badges
+- Contributing guidelines and development setup
+- Enhanced CLI examples and Python API documentation
+- Support for 4 languages: English, Spanish, French, Italian
 
 ### Features
 - **EPUB Processing**: Robust parsing with content filtering
@@ -45,6 +43,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Python API**: Easy-to-use library functions
 - **Multiple Formats**: JSON, CSV, XML, text output
 - **Language Support**: English, Spanish, French, Italian
+
+### Changed
+- Improved installation instructions
+- Updated Sphinx documentation to match current API
+- Enhanced README with comprehensive examples
+
+### Fixed
+- Corrected license information (Apache 2.0)
+- Updated language support documentation
 
 ---
 
