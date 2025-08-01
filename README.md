@@ -4,8 +4,9 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI/CD Pipeline](https://github.com/anidixit64/vivre/actions/workflows/ci.yml/badge.svg)](https://github.com/anidixit64/vivre/actions/workflows/ci.yml)
 [![Documentation](https://readthedocs.org/projects/vivre/badge/?version=latest)](https://vivre.readthedocs.io/en/latest/)
-[![Languages](https://img.shields.io/badge/Languages-4-green.svg)](https://github.com/anidixit64/vivre#language-support)
-[![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12-blue.svg)](https://www.python.org/downloads/)
+[![PyPI](https://img.shields.io/badge/PyPI-vivre-blue.svg)](https://pypi.org/project/vivre/)
+[![Languages](https://img.shields.io/badge/Languages-15-green.svg)](https://github.com/anidixit64/vivre#language-support)
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
 
 A Python library for parsing EPUB files and aligning parallel texts.
 
