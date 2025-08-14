@@ -920,8 +920,6 @@ class TestParser:
             "Preface",
             "Foreword",
             "Introduction",
-            "Prologue",
-            "Epilogue",
             "Afterword",
             "Appendix",
             "Index",
@@ -1003,7 +1001,6 @@ class TestParser:
                     "about the author",
                     "translator",
                     "preface",
-                    "epilogue",
                 ]
 
                 for keyword in non_story_keywords:

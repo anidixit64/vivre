@@ -95,8 +95,6 @@ class VivreParser:
             "preface",
             "foreword",
             "introduction",
-            "prologue",
-            "epilogue",
             "afterword",
             "appendix",
             "index",
@@ -130,10 +128,8 @@ class VivreParser:
             "traductor",
             "traducción",
             "nota del traductor",
-            "prólogo",
             "prefacio",
             "introducción",
-            "epílogo",
             "apéndice",
             "bibliografía",
             "referencias",
@@ -167,7 +163,6 @@ class VivreParser:
             "préface",
             "avant-propos",
             "introduction",
-            "épilogue",
             "appendice",
             "bibliographie",
             "références",
@@ -201,7 +196,6 @@ class VivreParser:
             "übersetzernotiz",
             "vorwort",
             "einleitung",
-            "epilog",
             "anhang",
             "bibliografie",
             "referenzen",
@@ -233,7 +227,6 @@ class VivreParser:
             "nota del traduttore",
             "prefazione",
             "introduzione",
-            "epilogo",
             "appendice",
             "bibliografia",
             "riferimenti",
@@ -860,7 +853,6 @@ class VivreParser:
             "acknowledgement",
             "preface",
             "foreword",
-            "epilogue",
             "afterword",
             "appendix",
             "index",
@@ -906,10 +898,13 @@ class VivreParser:
                 book_language, self.NON_STORY_KEYWORDS["en"]
             )
 
-            # Check title for common non-story content indicators
+            # Check title for common non-story content indicators using word boundaries
             title_lower = title.lower()
-            if any(keyword in title_lower for keyword in keywords):
-                return True
+            for keyword in keywords:
+                # Use word boundaries to match whole words only
+                pattern = r"\b" + re.escape(keyword) + r"\b"
+                if re.search(pattern, title_lower):
+                    return True
 
         return False
 
