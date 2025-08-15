@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .integration import VivrePipeline
-from .parser import VivreParser
+from .parser import Chapter, VivreParser
 from .segmenter import Segmenter
 
 # Keep a global pipeline instance to be reused by the API functions
@@ -74,12 +74,12 @@ class Chapters:
     the text into sentences.
     """
 
-    def __init__(self, chapters: List[Tuple[str, str]], book_title: str = ""):
+    def __init__(self, chapters: List[Chapter], book_title: str = ""):
         """
         Initialize with parsed chapters.
 
         Args:
-            chapters: List of (title, content) tuples
+            chapters: List of Chapter objects
             book_title: Title of the book
         """
         self.chapters = chapters
@@ -98,9 +98,9 @@ class Chapters:
             Self with segmented chapters
         """
         segmented = []
-        for title, content in self.chapters:
-            sentences = self._segmenter.segment(content, language)
-            segmented.append((title, sentences))
+        for chapter in self.chapters:
+            sentences = self._segmenter.segment(chapter.content, language)
+            segmented.append((chapter.title, sentences))
 
         self._segmented_chapters = segmented
         return self
@@ -117,7 +117,7 @@ class Chapters:
         """Return the number of chapters."""
         return len(self.chapters)
 
-    def __getitem__(self, index: int) -> Tuple[str, str]:
+    def __getitem__(self, index: int) -> Chapter:
         """Get a chapter by index."""
         return self.chapters[index]
 
@@ -335,8 +335,8 @@ def clear_pipeline_cache() -> None:
 
 
 def _create_aligned_corpus(
-    source_chapters: List[Tuple[str, str]],
-    target_chapters: List[Tuple[str, str]],
+    source_chapters: List[Chapter],
+    target_chapters: List[Chapter],
     pipeline: VivrePipeline,
     book_title: str,
     language_pair: str,
@@ -351,13 +351,12 @@ def _create_aligned_corpus(
     }
 
     # Process each chapter pair
-    for i, (
-        (source_title, source_content),
-        (target_title, target_content),
-    ) in enumerate(zip(source_chapters, target_chapters), 1):
+    for i, (source_chapter, target_chapter) in enumerate(
+        zip(source_chapters, target_chapters), 1
+    ):
         # Segment both chapters
-        source_sentences = pipeline.segmenter.segment(source_content)
-        target_sentences = pipeline.segmenter.segment(target_content)
+        source_sentences = pipeline.segmenter.segment(source_chapter.content)
+        target_sentences = pipeline.segmenter.segment(target_chapter.content)
 
         # Align sentences
         alignments = pipeline.aligner.align(source_sentences, target_sentences)
@@ -371,7 +370,7 @@ def _create_aligned_corpus(
 
         # Add chapter to corpus
         corpus["chapters"][str(i)] = {
-            "title": source_title,  # Use source title as primary
+            "title": source_chapter.title,  # Use source title as primary
             "alignments": chapter_alignments,
         }
 
@@ -454,7 +453,7 @@ def _format_as_xml(corpus: Dict[str, Any]) -> str:
 
 def _parse_source_or_chapters(
     source: Union[str, Path, Chapters], name: str
-) -> Tuple[List[Tuple[str, str]], str]:
+) -> Tuple[List[Chapter], str]:
     """
     Parse source or target, whether it's a file path or Chapters object.
 

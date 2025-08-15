@@ -157,15 +157,24 @@ class TestParser:
         assert isinstance(chapters, list), "chapters should be a list"
         assert len(chapters) > 0, "should extract at least one chapter"
 
-        for i, (title, text) in enumerate(chapters):
-            assert isinstance(title, str), f"chapter {i} title should be a string"
-            assert isinstance(text, str), f"chapter {i} text should be a string"
-            assert len(title) > 0, f"chapter {i} title should not be empty"
+        for i, chapter in enumerate(chapters):
+            assert isinstance(chapter.title, str), (
+                f"chapter {i} title should be a string"
+            )
+            assert isinstance(chapter.content, str), (
+                f"chapter {i} content should be a string"
+            )
+            assert len(chapter.title) > 0, f"chapter {i} title should not be empty"
             # Skip text length check for cover/title pages
-            if "cover" not in title.lower() and "title" not in title.lower():
-                assert len(text) > 0, f"chapter {i} text should not be empty"
-            print(f"Chapter {i + 1}: {title[:50]}...")
-            print(f"Text length: {len(text)} characters")
+            if (
+                "cover" not in chapter.title.lower()
+                and "title" not in chapter.title.lower()
+            ):
+                assert len(chapter.content) > 0, (
+                    f"chapter {i} content should not be empty"
+                )
+            print(f"Chapter {i + 1}: {chapter.title[:50]}...")
+            print(f"Text length: {len(chapter.content)} characters")
 
     def test_extract_chapter_content_fallback(self):
         """Test the fallback text extraction when XML parsing fails."""
@@ -508,15 +517,24 @@ class TestParser:
         assert isinstance(chapters, list), "chapters should be a list"
         assert len(chapters) > 0, "should extract at least one chapter"
 
-        for i, (title, text) in enumerate(chapters):
-            assert isinstance(title, str), f"chapter {i} title should be a string"
-            assert isinstance(text, str), f"chapter {i} text should be a string"
-            assert len(title) > 0, f"chapter {i} title should not be empty"
+        for i, chapter in enumerate(chapters):
+            assert isinstance(chapter.title, str), (
+                f"chapter {i} title should be a string"
+            )
+            assert isinstance(chapter.content, str), (
+                f"chapter {i} content should be a string"
+            )
+            assert len(chapter.title) > 0, f"chapter {i} title should not be empty"
             # Skip text length check for cover/title pages
-            if "cover" not in title.lower() and "title" not in title.lower():
-                assert len(text) > 0, f"chapter {i} text should not be empty"
-            print(f"Chapter {i + 1}: {title[:50]}...")
-            print(f"Text length: {len(text)} characters")
+            if (
+                "cover" not in chapter.title.lower()
+                and "title" not in chapter.title.lower()
+            ):
+                assert len(chapter.content) > 0, (
+                    f"chapter {i} content should not be empty"
+                )
+            print(f"Chapter {i + 1}: {chapter.title[:50]}...")
+            print(f"Text length: {len(chapter.content)} characters")
 
     def test_parse_epub_error_handling(self):
         """Test error handling in parse_epub method."""
@@ -561,16 +579,40 @@ class TestParser:
         assert len(chapters) > 0, "should have at least one chapter"
 
         for i, chapter in enumerate(chapters):
-            assert isinstance(chapter, tuple), f"chapter {i} should be a tuple"
-            assert len(chapter) == 2, f"chapter {i} should have exactly 2 elements"
+            assert hasattr(chapter, "title"), (
+                f"chapter {i} should have a title attribute"
+            )
+            assert hasattr(chapter, "content"), (
+                f"chapter {i} should have a content attribute"
+            )
+            assert hasattr(chapter, "href"), (
+                f"chapter {i} should have an href attribute"
+            )
+            assert hasattr(chapter, "order"), (
+                f"chapter {i} should have an order attribute"
+            )
+            assert hasattr(chapter, "char_count"), (
+                f"chapter {i} should have a char_count attribute"
+            )
+            assert hasattr(chapter, "word_count"), (
+                f"chapter {i} should have a word_count attribute"
+            )
 
-            title, text = chapter
-            assert isinstance(title, str), f"chapter {i} title should be a string"
-            assert isinstance(text, str), f"chapter {i} text should be a string"
-            assert len(title) > 0, f"chapter {i} title should not be empty"
+            assert isinstance(chapter.title, str), (
+                f"chapter {i} title should be a string"
+            )
+            assert isinstance(chapter.content, str), (
+                f"chapter {i} content should be a string"
+            )
+            assert len(chapter.title) > 0, f"chapter {i} title should not be empty"
             # Skip text length check for cover/title pages
-            if "cover" not in title.lower() and "title" not in title.lower():
-                assert len(text) > 0, f"chapter {i} text should not be empty"
+            if (
+                "cover" not in chapter.title.lower()
+                and "title" not in chapter.title.lower()
+            ):
+                assert len(chapter.content) > 0, (
+                    f"chapter {i} content should not be empty"
+                )
 
     def test_bad_path_handling(self):
         """Test handling of various bad path scenarios."""
@@ -848,18 +890,24 @@ class TestParser:
         assert len(chapters) > 0, "should extract at least one chapter"
 
         # Check chapter titles and content
-        for i, (title, text) in enumerate(chapters):
-            assert isinstance(title, str), f"chapter {i} title should be a string"
-            assert isinstance(text, str), f"chapter {i} text should be a string"
-            assert len(title) > 0, f"chapter {i} title should not be empty"
-            assert len(text) > 0, f"chapter {i} text should not be empty"
+        for i, chapter in enumerate(chapters):
+            assert isinstance(chapter.title, str), (
+                f"chapter {i} title should be a string"
+            )
+            assert isinstance(chapter.content, str), (
+                f"chapter {i} content should be a string"
+            )
+            assert len(chapter.title) > 0, f"chapter {i} title should not be empty"
+            assert len(chapter.content) > 0, f"chapter {i} content should not be empty"
 
             # Verify the text contains story content (not just metadata)
-            assert len(text) > 100, f"chapter {i} should have substantial text content"
+            assert len(chapter.content) > 100, (
+                f"chapter {i} should have substantial text content"
+            )
 
-            print(f"Chapter {i + 1}: {title}")
-            print(f"Text length: {len(text)} characters")
-            print(f"Text preview: {text[:100]}...")
+            print(f"Chapter {i + 1}: {chapter.title}")
+            print(f"Text length: {len(chapter.content)} characters")
+            print(f"Text preview: {chapter.content[:100]}...")
 
     def test_parse_percy_jackson_spanish(self):
         """Test parsing the Spanish Percy Jackson EPUB file."""
@@ -883,18 +931,24 @@ class TestParser:
         assert len(chapters) > 0, "should extract at least one chapter"
 
         # Check chapter titles and content
-        for i, (title, text) in enumerate(chapters):
-            assert isinstance(title, str), f"chapter {i} title should be a string"
-            assert isinstance(text, str), f"chapter {i} text should be a string"
-            assert len(title) > 0, f"chapter {i} title should not be empty"
-            assert len(text) > 0, f"chapter {i} text should not be empty"
+        for i, chapter in enumerate(chapters):
+            assert isinstance(chapter.title, str), (
+                f"chapter {i} title should be a string"
+            )
+            assert isinstance(chapter.content, str), (
+                f"chapter {i} content should be a string"
+            )
+            assert len(chapter.title) > 0, f"chapter {i} title should not be empty"
+            assert len(chapter.content) > 0, f"chapter {i} content should not be empty"
 
             # Verify the text contains story content (not just metadata)
-            assert len(text) > 100, f"chapter {i} should have substantial text content"
+            assert len(chapter.content) > 100, (
+                f"chapter {i} should have substantial text content"
+            )
 
-            print(f"Chapter {i + 1}: {title}")
-            print(f"Text length: {len(text)} characters")
-            print(f"Text preview: {text[:100]}...")
+            print(f"Chapter {i + 1}: {chapter.title}")
+            print(f"Text length: {len(chapter.content)} characters")
+            print(f"Text preview: {chapter.content[:100]}...")
 
     def test_filter_non_story_content(self):
         """Test that the parser correctly filters out non-story content."""
@@ -982,16 +1036,16 @@ class TestParser:
             )
 
             # Verify all chapters have substantial content
-            for i, (title, text) in enumerate(chapters):
-                assert len(title) > 0, (
+            for i, chapter in enumerate(chapters):
+                assert len(chapter.title) > 0, (
                     f"Chapter {i} title should not be empty in {filename}"
                 )
-                assert len(text) > 100, (
+                assert len(chapter.content) > 100, (
                     f"Chapter {i} should have substantial text in {filename}"
                 )
 
                 # Verify the title doesn't contain non-story keywords
-                title_lower = title.lower()
+                title_lower = chapter.title.lower()
                 non_story_keywords = [
                     "cover",
                     "title",
@@ -1005,7 +1059,7 @@ class TestParser:
 
                 for keyword in non_story_keywords:
                     assert keyword not in title_lower, (
-                        f"Chapter title '{title}' should not contain "
+                        f"Chapter title '{chapter.title}' should not contain "
                         f"'{keyword}' in {filename}"
                     )
 
