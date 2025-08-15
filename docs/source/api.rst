@@ -23,6 +23,14 @@ Core Classes
 
 The main classes that provide the core functionality.
 
+Chapter
+~~~~~~~
+
+.. autoclass:: vivre.Chapter
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 AlignmentResult
 ~~~~~~~~~~~~~~
 

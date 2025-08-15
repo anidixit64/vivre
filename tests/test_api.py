@@ -26,11 +26,11 @@ class TestReadFunction:
         assert len(chapters.chapters) > 0
 
         # Test that each chapter has title and content
-        for title, content in chapters.chapters:
-            assert isinstance(title, str)
-            assert isinstance(content, str)
-            assert len(title) > 0
-            assert len(content) > 0
+        for chapter in chapters.chapters:
+            assert isinstance(chapter.title, str)
+            assert isinstance(chapter.content, str)
+            assert len(chapter.title) > 0
+            assert len(chapter.content) > 0
 
     def test_chapters_segment_method(self, source_epub_path):
         """Test that chapters can be segmented."""
