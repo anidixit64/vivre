@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="docs/source/_static/vivre-logo.png" alt="Vivre Logo" width="300">
+</div>
+
 # Vivre
 
 [![codecov](https://codecov.io/github/anidixit64/vivre/graph/badge.svg?token=JJLN3K87G4)](https://codecov.io/github/anidixit64/vivre)

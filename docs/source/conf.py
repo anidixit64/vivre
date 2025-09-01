@@ -40,3 +40,7 @@ else:
     html_theme = "alabaster"
 
 html_static_path = ["_static"]
+
+# Logo configuration
+html_logo = "_static/vivre-logo.png"  # Full logo with text for header
+html_favicon = "_static/vivre-icon.png"  # Icon only for favicon
