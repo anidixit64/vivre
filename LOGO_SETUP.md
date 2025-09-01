@@ -63,10 +63,12 @@ The logos are configured in `docs/source/conf.py` and will appear:
 
 ### 4. PyPI
 
-The logo is configured in `pyproject.toml` and will appear:
-- On the PyPI package page
-- In search results
-- In package listings
+PyPI logos are configured through the PyPI web interface after package upload:
+- Upload your package to PyPI
+- Go to your package page on PyPI
+- Click "Manage" → "Edit"
+- Upload the logo image in the "Project logo" section
+- The logo will appear on the PyPI package page, search results, and package listings
 
 ## File Locations
 
@@ -82,7 +84,7 @@ vivre/
 ├── README.md                    ← GitHub display (full logo)
 ├── docs/source/conf.py         ← ReadTheDocs config (both)
 ├── docs/source/index.rst       ← Documentation header (full logo)
-└── pyproject.toml              ← PyPI config (full logo)
+└── pyproject.toml              ← Package configuration (no logo config)
 ```
 
 ## Verification Steps
@@ -91,7 +93,7 @@ After adding the logo images:
 
 1. **GitHub**: Check that the full logo appears in the README
 2. **ReadTheDocs**: Build and deploy documentation to see both logos
-3. **PyPI**: Upload a new package version to see the full logo on PyPI
+3. **PyPI**: Upload a new package version and manually add the logo through the PyPI web interface
 4. **Browser**: Check that the icon appears as favicon in browser tabs
 
 ## Building Documentation Locally

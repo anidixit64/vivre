@@ -7,8 +7,6 @@ readme = "README.md"
 packages = [
     {include = "vivre", from = "src"}
 ]
-# Logo for PyPI
-logo = "docs/source/_static/vivre-logo.png"
 
 [tool.poetry.scripts]
 vivre = "vivre.cli:app"
