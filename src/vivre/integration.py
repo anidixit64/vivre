@@ -110,16 +110,15 @@ class VivrePipeline:
         # Process each chapter pair
         all_alignments: List[Tuple[str, str]] = []
 
-        for i, (
-            (source_title, source_content),
-            (target_title, target_content),
-        ) in enumerate(zip(source_chapters, target_chapters)):
+        for i, (source_chapter, target_chapter) in enumerate(
+            zip(source_chapters, target_chapters)
+        ):
             # Segment chapters into sentences
             source_sentences = self.segmenter.segment(
-                source_content, language=source_language
+                source_chapter.content, language=source_language
             )
             target_sentences = self.segmenter.segment(
-                target_content, language=target_language
+                target_chapter.content, language=target_language
             )
 
             if source_sentences and target_sentences:

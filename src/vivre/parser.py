@@ -21,6 +21,7 @@ Example:
 import os
 import re
 import zipfile
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -33,6 +34,18 @@ NAMESPACES = {
     "opf": "http://www.idpf.org/2007/opf",
     "container": "urn:oasis:names:tc:opendocument:xmlns:container",
 }
+
+
+@dataclass
+class Chapter:
+    """Represents a chapter extracted from an EPUB file."""
+
+    title: str
+    content: str
+    href: str
+    order: int
+    char_count: int
+    word_count: int
 
 
 class VivreParser:
@@ -380,7 +393,7 @@ class VivreParser:
         """
         return self._is_loaded
 
-    def parse_epub(self, file_path: Union[str, Path]) -> List[Tuple[str, str]]:
+    def parse_epub(self, file_path: Union[str, Path]) -> List[Chapter]:
         """
         Parse an EPUB file and extract chapter titles and text content.
 
@@ -396,7 +409,7 @@ class VivreParser:
             file_path: Path to the EPUB file to parse. Can be a string or Path object.
 
         Returns:
-            List of tuples containing (chapter_title, chapter_text) pairs.
+            List of Chapter objects containing chapter information.
             Only story chapters are included, with non-story content filtered out.
 
         Raises:
@@ -408,7 +421,7 @@ class VivreParser:
         if not self.load_epub(file_path):
             raise ValueError(f"Failed to load EPUB file: {file_path}")
 
-        chapters: List[Tuple[str, str]] = []
+        chapters: List[Chapter] = []
 
         try:
             with zipfile.ZipFile(file_path, "r") as epub_zip:
@@ -456,7 +469,7 @@ class VivreParser:
                     raise ValueError("No itemref elements found in spine")
 
                 # Step 4: Extract chapter content for each item in the spine
-                for itemref in itemrefs:
+                for i, itemref in enumerate(itemrefs):
                     idref = itemref.get("idref")
                     if not idref:
                         continue
@@ -510,7 +523,20 @@ class VivreParser:
                         if "bm" in href.lower():
                             continue
 
-                        chapters.append((chapter_title, chapter_text))
+                        # Calculate character and word counts
+                        char_count = len(chapter_text)
+                        word_count = len(chapter_text.split())
+
+                        chapters.append(
+                            Chapter(
+                                title=chapter_title,
+                                content=chapter_text,
+                                href=href,
+                                order=i,
+                                char_count=char_count,
+                                word_count=word_count,
+                            )
+                        )
                     except Exception as e:
                         # Skip chapters that can't be parsed
                         warning_msg = f"Warning: Could not parse chapter {href}: {e}"

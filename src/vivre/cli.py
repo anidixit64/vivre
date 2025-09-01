@@ -401,23 +401,27 @@ def parse(
         }
 
         # Process chapters
-        for i, (title, content) in enumerate(chapters.chapters, 1):
+        for i, chapter in enumerate(chapters.chapters, 1):
             if max_chapters and i > max_chapters:
                 break
 
             chapter_data: dict = {
                 "number": i,
-                "title": title,
-                "word_count": len(content.split()),
-                "character_count": len(content),
+                "title": chapter.title,
+                "word_count": chapter.word_count,
+                "character_count": chapter.char_count,
             }
 
             # Add content if requested
             if show_content:
-                chapter_data["content"] = content
+                chapter_data["content"] = chapter.content
             else:
                 # Add preview
-                preview = content[:200] + "..." if len(content) > 200 else content
+                preview = (
+                    chapter.content[:200] + "..."
+                    if len(chapter.content) > 200
+                    else chapter.content
+                )
                 chapter_data["content_preview"] = preview
 
             # Add segmented sentences if available
